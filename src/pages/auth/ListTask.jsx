@@ -7,10 +7,9 @@ import {
 } from "../../features/ApplicationApi";
 
 function ListTask() {
-  const { data: messages, isLoading, error, refetch } = useGetMessagesQuery();
-  const [deleteMessageById, { isLoading: isDeleting }] =
-    useDeleteMessageByIdMutation();
-  const [updateMessage, { isLoading: isUpdating }] = useUpdateMessageMutation();
+  const { data: messages, isLoading, error } = useGetMessagesQuery();
+  const [deleteMessageById] = useDeleteMessageByIdMutation();
+  const [updateMessage] = useUpdateMessageMutation();
   const { data: users } = useGetUsersQuery();
 
   const [editingId, setEditingId] = useState(null);
@@ -24,18 +23,22 @@ function ListTask() {
     ? users
     : users?.users || users?.data || [];
 
-  // --- IMPROVED NORMALIZATION ---
+  // Helper to find user name by ID
+  const getUserName = (userId) => {
+    if (!userId) return "Unassigned";
+    const user = usersData.find((u) => (u._id || u.id) === userId);
+    return user ? user.name || user.username : "Unknown User";
+  };
+
   const messagesData = React.useMemo(() => {
     const rawList = Array.isArray(messages)
       ? messages
       : messages?.messages || messages?.data || messages?.tasks || [];
 
     return rawList.map((m) => {
-      // Flatten Mongoose _doc if it exists, and ensure we find an ID
       const item = m._doc ? { ...m._doc, ...m } : m;
       return {
         ...item,
-        // Fallback: if _id doesn't exist, try id
         _id: item._id || item.id,
       };
     });
@@ -50,31 +53,13 @@ function ListTask() {
   })();
 
   const updateTaskField = async (id, payload) => {
-    // SAFETY CHECK: Prevent the "undefined" URL error
-    if (!id) {
-      console.error(
-        "Mutation aborted: ID is undefined. Check your data structure.",
-        payload,
-      );
-      alert("Error: Task ID is missing.");
-      return false;
-    }
-
+    if (!id) return false;
     setUpdatingIds((s) => ({ ...s, [id]: true }));
     try {
-      console.log(`Updating task ${id} with:`, payload);
-      await updateMessage({
-        messageId: id,
-        updatedData: payload,
-      }).unwrap();
-
-      // refetch(); // Optional: RTK Query tags usually handle this better
+      await updateMessage({ messageId: id, updatedData: payload }).unwrap();
       return true;
     } catch (e) {
-      console.error("Update failed:", e);
-      alert(
-        "Update failed: " + (e?.data?.message || e.message || "Server Error"),
-      );
+      alert("Update failed: " + (e?.data?.message || e.message));
       return false;
     } finally {
       setUpdatingIds((s) => {
@@ -85,64 +70,37 @@ function ListTask() {
     }
   };
 
+  const handleDelete = async (id) => {
+    try {
+      await deleteMessageById(id).unwrap();
+      alert("Deleted successfully");
+    } catch (err) {
+      console.log(err);
+      alert("Delete failed");
+    }
+  };
+
   const handleSave = async () => {
-    const success = await updateTaskField(editingId, editForm);
+    // Only send the fields the backend expects
+    const payload = {
+      task: editForm.task,
+      content: editForm.content,
+      status: editForm.status,
+      // add other specific fields
+    };
+    const success = await updateTaskField(editingId, payload);
     if (success) setEditingId(null);
   };
 
-  const handleDelete = async (id) => {
-    if (!id || !confirm("Delete this task?")) return;
-    try {
-      await deleteMessageById(id).unwrap();
-    } catch (e) {
-      alert("Delete failed: " + (e?.data?.message || e.message));
-    }
-  };
-
+  // Review is often saved as 'review' or 'commend' in databases
   const saveReview = async (id) => {
-    const val = reviewInputs[id];
-    if (val === undefined) return;
-    const success = await updateTaskField(id, { commend: val });
-    if (success) {
-      setReviewInputs((s) => {
-        const n = { ...s };
-        delete n[id];
-        return n;
-      });
-    }
+    const val = reviewInputs[id] ?? messagesData.find((m) => m._id === id)?.review ?? "";
+    await updateTaskField(id, { review: val });
   };
 
   const saveComment = async (id) => {
-    const val = commentInputs[id];
-    if (val === undefined) return;
-    const success = await updateTaskField(id, { comment: val });
-    if (success) {
-      setCommentInputs((s) => {
-        const n = { ...s };
-        delete n[id];
-        return n;
-      });
-    }
-  };
-
-  const handleStatusChange = async (id, status) => {
-    setOptimisticStatus((s) => ({ ...s, [id]: status }));
-    const success = await updateTaskField(id, { [statusField]: status });
-    if (!success) {
-      setOptimisticStatus((s) => {
-        const n = { ...s };
-        delete n[id];
-        return n;
-      });
-    } else {
-      setTimeout(() => {
-        setOptimisticStatus((s) => {
-          const n = { ...s };
-          delete n[id];
-          return n;
-        });
-      }, 1000);
-    }
+    const val = commentInputs[id] ?? messagesData.find((m) => m._id === id)?.comment ?? "";
+    await updateTaskField(id, { comment: val });
   };
 
   if (isLoading) return <div className="text-center py-10">Loading...</div>;
@@ -152,19 +110,39 @@ function ListTask() {
     );
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Tasks</h2>
-      <div className="space-y-4">
+    <div className="max-w-5xl mx-auto p-6 bg-gray-50 min-h-screen">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">
+        Task Management
+      </h2>
+      <div className="space-y-6">
         {messagesData.map((msg) => {
-          // Identify the ID for this specific row
-          const msgId = msg._id || msg.id;
-
-          const serverStatus = msg.status ?? msg.states ?? "pending";
-          const displayStatus = optimisticStatus[msgId] ?? serverStatus;
+          const msgId = msg._id;
+          const displayStatus =
+            optimisticStatus[msgId] ?? (msg.status || msg.states || "pending");
 
           return (
-            <div key={msgId} className="border p-4 rounded-lg shadow-sm">
-              <div className="flex justify-between items-start gap-4">
+            <div
+              key={msgId}
+              className="bg-white border rounded-xl shadow-sm overflow-hidden"
+            >
+              {/* Header: Priority & Status */}
+              <div className="flex justify-between items-center bg-gray-100 px-4 py-2 border-b">
+                <span
+                  className={`text-xs font-bold uppercase px-2 py-1 rounded ${
+                    msg.priority === "high"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}
+                >
+                  {msg.priority || "Normal"} Priority
+                </span>
+                <span className="text-xs text-gray-500">
+                  ID: {msgId?.slice(-6)}
+                </span>
+              </div>
+
+              <div className="p-4 flex flex-col md:flex-row gap-6">
+                {/* Main Content */}
                 <div className="flex-1">
                   {editingId === msgId ? (
                     <div className="space-y-2">
@@ -173,54 +151,104 @@ function ListTask() {
                         onChange={(e) =>
                           setEditForm({ ...editForm, task: e.target.value })
                         }
-                        className="w-full border p-1"
+                        className="w-full border p-2 rounded"
                       />
                       <textarea
                         value={editForm.content}
                         onChange={(e) =>
                           setEditForm({ ...editForm, content: e.target.value })
                         }
-                        className="w-full border p-1"
+                        className="w-full border p-2 rounded"
                       />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleSave}
-                          className="bg-green-600 text-white px-3 py-1 rounded"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="bg-gray-200 px-3 py-1 rounded"
-                        >
-                          Cancel
-                        </button>
-                      </div>
+                      <button
+                        onClick={handleSave}
+                        className="bg-green-600 text-white px-4 py-1 rounded mr-2"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="bg-gray-200 px-4 py-1 rounded"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   ) : (
                     <div>
-                      <h3 className="font-bold">{msg.title || msg.task}</h3>
-                      <div className="mt-2 flex gap-2">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs text-white ${
-                            displayStatus === "completed"
-                              ? "bg-green-500"
-                              : "bg-yellow-500"
-                          }`}
-                        >
-                          {displayStatus}
-                        </span>
+                      <h3 className="text-xl font-bold text-gray-900">
+                        {msg.task || msg.title}
+                      </h3>
+                      <p className="text-gray-600 mt-1">{msg.content}</p>
+
+                      {/* --- NEW METADATA GRID --- */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4 p-3 bg-gray-50 rounded-lg text-sm">
+                        <div>
+                          <p className="text-gray-500 text-xs font-semibold">
+                            DUE DATE
+                          </p>
+                          <p className="font-medium text-red-600">
+                            {msg.dueDate
+                              ? new Date(msg.dueDate).toLocaleDateString()
+                              : "No Date"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs font-semibold">
+                            DEPARTMENT
+                          </p>
+                          <p className="font-medium">
+                            {msg.department || "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs font-semibold">
+                            BRANCH
+                          </p>
+                          <p className="font-medium">{msg.branch || "N/A"}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs font-semibold">
+                            ASSIGNEE
+                          </p>
+                          <p className="font-medium">
+                            {getUserName(msg.assignee)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs font-semibold">
+                            ASSIGNER
+                          </p>
+                          <p className="font-medium">
+                            {getUserName(msg.assigner)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs font-semibold">
+                            STATUS
+                          </p>
+                          <p
+                            className={`capitalize font-bold ${displayStatus === "completed" ? "text-green-600" : "text-yellow-600"}`}
+                          >
+                            {displayStatus}
+                          </p>
+                        </div>
                       </div>
 
-                      {/* Review & Comment inputs */}
-                      <div className="mt-4 space-y-4">
-                        <div>
-                          <label className="text-xs font-bold block">
-                            Review
+                      {/* --- REVIEW & COMMENT SECTION --- */}
+                      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex flex-col">
+                          <label className="text-xs font-bold text-gray-600 mb-1">
+                            REVIEW
                           </label>
                           <textarea
-                            className="w-full border text-sm p-1"
-                            value={reviewInputs[msgId] ?? msg.commend ?? ""}
+                            className="border rounded p-2 text-sm h-20"
+                            placeholder="Add a review..."
+                            value={
+                              reviewInputs[msgId] ??
+                              msg.review ??
+                              msg.commend ??
+                              ""
+                            }
                             onChange={(e) =>
                               setReviewInputs({
                                 ...reviewInputs,
@@ -230,17 +258,18 @@ function ListTask() {
                           />
                           <button
                             onClick={() => saveReview(msgId)}
-                            className="text-xs bg-gray-800 text-white px-2 py-1 mt-1"
+                            className="mt-2 text-xs bg-gray-800 text-white py-1 rounded"
                           >
                             Update Review
                           </button>
                         </div>
-                        <div>
-                          <label className="text-xs font-bold block">
-                            Comment
+                        <div className="flex flex-col">
+                          <label className="text-xs font-bold text-gray-600 mb-1">
+                            COMMENT
                           </label>
                           <textarea
-                            className="w-full border text-sm p-1"
+                            className="border rounded p-2 text-sm h-20"
+                            placeholder="Add a comment..."
                             value={commentInputs[msgId] ?? msg.comment ?? ""}
                             onChange={(e) =>
                               setCommentInputs({
@@ -251,7 +280,7 @@ function ListTask() {
                           />
                           <button
                             onClick={() => saveComment(msgId)}
-                            className="text-xs bg-blue-600 text-white px-2 py-1 mt-1"
+                            className="mt-2 text-xs bg-blue-600 text-white py-1 rounded"
                           >
                             Update Comment
                           </button>
@@ -261,11 +290,14 @@ function ListTask() {
                   )}
                 </div>
 
-                <div className="w-32 flex flex-col gap-2">
+                {/* Right Sidebar: Actions */}
+                <div className="w-full md:w-32 flex flex-col gap-2">
                   <select
                     value={displayStatus}
-                    onChange={(e) => handleStatusChange(msgId, e.target.value)}
-                    className="border text-sm"
+                    onChange={(e) =>
+                      updateTaskField(msgId, { [statusField]: e.target.value })
+                    }
+                    className="border text-sm p-1 rounded bg-white"
                   >
                     <option value="pending">Pending</option>
                     <option value="in-progress">In Progress</option>
@@ -274,7 +306,8 @@ function ListTask() {
                   <button
                     onClick={() => {
                       setEditingId(msgId);
-                      setEditForm({ task: msg.task, content: msg.content });
+                      // Spread the whole msg object so you keep all fields (dueDate, priority, etc.)
+                      setEditForm({ ...msg });
                     }}
                     className="bg-indigo-500 text-white text-xs py-1 rounded"
                   >
@@ -282,7 +315,7 @@ function ListTask() {
                   </button>
                   <button
                     onClick={() => handleDelete(msgId)}
-                    className="bg-red-500 text-white text-xs py-1 rounded"
+                    className="bg-red-500 text-white text-xs py-2 rounded hover:bg-red-600 transition"
                   >
                     Delete
                   </button>

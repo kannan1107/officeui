@@ -14,23 +14,6 @@ export const appApi = createApi({
         state.auth?.user?.token ||
         localStorage.getItem("token");
       const token = rawToken?.replace(/"/g, "");
-      // Temporary debug log to verify which token (if any) is attached to requests
-      try {
-        // Log only presence and first/last chars to avoid printing full sensitive token
-        if (token) {
-          const preview =
-            token.length > 10
-              ? `${token.slice(0, 6)}...${token.slice(-4)}`
-              : token;
-          // eslint-disable-next-line no-console
-          console.log("appApi prepareHeaders: attaching token", preview);
-        } else {
-          // eslint-disable-next-line no-console
-          console.log("appApi prepareHeaders: no token found");
-        }
-      } catch (e) {
-        // ignore logging errors
-      }
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
@@ -221,7 +204,32 @@ export const appApi = createApi({
       invalidatesTags: ["Doto"],
     }),
     postEmployee: builder.mutation({
-      query: (data) => ({ url: "/api/employees", method: "POST", body: data }),
+      query: (data) => ({
+        url: "/api/employee/createEmployee",
+        method: "POST",
+        body: data, // RTK Query automatically detects FormData and sets headers correctly
+      }),
+    }),
+    getEmployee: builder.mutation({
+      query: (id) => ({
+        url: `/api/employee/getAllEmployees`,
+        method: "GET",
+      }),
+    }),
+    deleteEmployee: builder.mutation({
+      query: (id) => ({
+        // REMOVED the colon before ${id}
+        url: `/api/employee/deleteEmployee/${id}`,
+        method: "DELETE",
+      }),
+    }),
+    updateProfile: builder.mutation({
+      query: ({ id, data }) => ({
+        // REMOVED the colon before ${id}
+        url: `/api/employee/updateEmployee/${id}`,
+        method: "PUT",
+        body: data,
+      }),
     }),
   }),
 });
@@ -259,4 +267,7 @@ export const {
   useUpdateMessageMutation,
   useDeleteMessageByIdMutation,
   usePostEmployeeMutation,
+  useGetEmployeeMutation,
+  useDeleteEmployeeMutation,
+  useUpdateProfileMutation,
 } = appApi;
