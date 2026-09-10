@@ -73,8 +73,9 @@ function AllEmployee() {
     return (
       employee.name?.toLowerCase().includes(searchString) ||
       employee.email?.toLowerCase().includes(searchString) ||
-      employee.mobile?.includes(searchString) ||
-      employee.position?.toLowerCase().includes(searchString)
+      employee.mobile?.toString().includes(searchString) ||
+      employee.position?.toLowerCase().includes(searchString) ||
+      employee._id?.toLowerCase().includes(searchString)
     );
   });
 
@@ -218,6 +219,12 @@ function AllEmployee() {
                           </div>
                         ) : (
                           <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEdit(employee)}
+                              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                            >
+                              Print
+                            </button>
                             <button
                               onClick={() => handleEdit(employee)}
                               className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"

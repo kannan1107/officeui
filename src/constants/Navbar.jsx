@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function Navbar() {
   const [open, setOpen] = useState(false);
@@ -98,6 +98,21 @@ function Navbar() {
                   Spars
                 </a>
                 <a
+                  href="/item-inout"
+                  className="block px-4 py-2 hover:bg-gray-100"
+                >
+                  Item In / Out
+                </a>
+                <a href="/user" className="block px-4 py-2 hover:bg-gray-100">
+                  Add User
+                </a>
+                <Link
+                  to="/all-users"
+                  className="block px-4 py-2 hover:bg-gray-100"
+                >
+                  All User
+                </Link>
+                <a
                   href="/employee"
                   className="block px-4 py-2 hover:bg-gray-100"
                 >
@@ -108,6 +123,12 @@ function Navbar() {
                   className="block px-4 py-2 hover:bg-gray-100"
                 >
                   Employee List
+                </a>
+                <a
+                  href="/salary-slip"
+                  className="block px-4 py-2 hover:bg-gray-100"
+                >
+                  Salary Slip
                 </a>
 
                 <button

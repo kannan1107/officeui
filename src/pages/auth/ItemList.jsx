@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useSelector } from "react-redux";
+import * as XLSX from "xlsx";
 import { useGetItemsQuery, useUpdateItemMutation, useDeleteItemMutation } from "../../features/ApplicationApi";
 
 function ItemList() {
@@ -7,7 +9,55 @@ function ItemList() {
     const [updateItem, { isLoading: isUpdating }] = useUpdateItemMutation();
     const [deleteItem, { isLoading: isDeleting }] = useDeleteItemMutation();
 
+    const currentUser = useSelector((state) => state.auth?.user);
     const itemsData = Array.isArray(items) ? items : items?.items || items?.data || [];
+
+    const [search, setSearch] = useState("");
+    const [filterLocation, setFilterLocation] = useState("");
+    const [filterLocationId, setFilterLocationId] = useState("");
+    const [filterPlace, setFilterPlace] = useState("");
+    const [filterPlaceId, setFilterPlaceId] = useState("");
+
+    const unique = (key) => [...new Set(itemsData.map((i) => i[key]).filter(Boolean))];
+
+    const filteredData = useMemo(() => {
+        const q = search.toLowerCase();
+        return itemsData.filter((item) =>
+            (!filterLocation || item.location === filterLocation) &&
+            (!filterLocationId || item.locationId === filterLocationId) &&
+            (!filterPlace || item.place === filterPlace) &&
+            (!filterPlaceId || item.placeId === filterPlaceId) &&
+            (!q || [item.itemname, item.batch, item.category, item.partno, item.alternativePart, item.status, item.description]
+                .some((v) => String(v ?? "").toLowerCase().includes(q)))
+        );
+    }, [itemsData, search, filterLocation, filterLocationId, filterPlace, filterPlaceId]);
+
+    const exportToExcel = () => {
+        const rows = filteredData.map((item) => ({
+            "Item Name": item.itemname,
+            "Batch": item.batch,
+            "Category": item.category,
+            "Part No": item.partno,
+            "Alt Part": item.alternativePart,
+            "Condition": item.condition,
+            "Quantity": item.quantity,
+            "Status": item.status,
+            "Location": item.location,
+            "Location ID": item.locationId,
+            "Place": item.place,
+            "Place ID": item.placeId,
+            "Self Life": item.selfLife,
+            "Description": item.description,
+            "Added By": item.addedBy,
+            "Added Date": item.addedDate ? new Date(item.addedDate).toLocaleDateString() : "",
+            "Updated By": item.updatedBy,
+            "Updated Date": item.updatedDate ? new Date(item.updatedDate).toLocaleDateString() : "",
+        }));
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Items");
+        XLSX.writeFile(wb, "item-list.xlsx");
+    };
 
     const handleDelete = async (id) => {
         if (!window.confirm("Are you sure you want to delete this item?")) return;
@@ -27,7 +77,12 @@ function ItemList() {
     const handleSave = async (e) => {
         e.preventDefault();
         try {
-            await updateItem({ itemId: editItem._id || editItem.id, updatedData: editItem }).unwrap();
+            const updatedData = {
+                ...editItem,
+                updatedBy: currentUser?.name || currentUser?.email || "Unknown",
+                updatedDate: new Date().toISOString(),
+            };
+            await updateItem({ itemId: editItem._id || editItem.id, updatedData }).unwrap();
             setEditItem(null);
             await refetch();
         } catch (err) {
@@ -42,7 +97,61 @@ function ItemList() {
         <div className="pt-16 bg-gray-100 min-h-screen">
             <div className="p-6">
                 <div className="bg-white shadow-lg rounded-xl p-6 overflow-x-auto">
-                    <h2 className="text-3xl font-bold text-center mb-6">Item List</h2>
+                    <h2 className="text-3xl font-bold text-center mb-4">Item List</h2>
+
+                    {/* Search */}
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search by name, batch, category, part no, status..."
+                        className="w-full border rounded-lg px-3 py-2 text-sm mb-3"
+                    />
+
+                    {/* Filters + Export */}
+                    <div className="flex flex-wrap gap-3 mb-4 items-end">
+                        <div>
+                            <label className="block text-xs text-gray-500 mb-1">Location</label>
+                            <select value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+                                <option value="">All</option>
+                                {unique("location").map((v) => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-500 mb-1">Location ID</label>
+                            <select value={filterLocationId} onChange={(e) => setFilterLocationId(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+                                <option value="">All</option>
+                                {unique("locationId").map((v) => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-500 mb-1">Place</label>
+                            <select value={filterPlace} onChange={(e) => setFilterPlace(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+                                <option value="">All</option>
+                                {unique("place").map((v) => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-500 mb-1">Place ID</label>
+                            <select value={filterPlaceId} onChange={(e) => setFilterPlaceId(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+                                <option value="">All</option>
+                                {unique("placeId").map((v) => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                        </div>
+                        <button
+                            onClick={() => { setSearch(""); setFilterLocation(""); setFilterLocationId(""); setFilterPlace(""); setFilterPlaceId(""); }}
+                            className="px-3 py-2 text-sm border rounded-lg text-gray-600 hover:bg-gray-100"
+                        >
+                            Clear
+                        </button>
+                        <button
+                            onClick={exportToExcel}
+                            className="ml-auto px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                        >
+                            ⬇ Download Excel
+                        </button>
+                    </div>
+
                     <table className="min-w-full bg-white text-sm">
                         <thead>
                             <tr className="border-b bg-gray-50 text-left">
@@ -60,18 +169,22 @@ function ItemList() {
                                 <th className="py-2 px-4">Place ID</th>
                                 <th className="py-2 px-4">Self Life</th>
                                 <th className="py-2 px-4">Description</th>
+                                <th className="py-2 px-4">Added By</th>
+                                <th className="py-2 px-4">Added Date</th>
+                                <th className="py-2 px-4">Updated By</th>
+                                <th className="py-2 px-4">Updated Date</th>
                                 <th className="py-2 px-4">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {itemsData.length === 0 ? (
+                            {filteredData.length === 0 ? (
                                 <tr>
-                                    <td colSpan={15} className="py-6 text-center text-gray-500">
+                                    <td colSpan={19} className="py-6 text-center text-gray-500">
                                         No items found.
                                     </td>
                                 </tr>
                             ) : (
-                                itemsData.map((item) => (
+                                filteredData.map((item) => (
                                     <tr key={item._id || item.id} className="border-b hover:bg-gray-50">
                                         <td className="py-2 px-4">{item.itemname}</td>
                                         <td className="py-2 px-4">{item.batch}</td>
@@ -87,6 +200,10 @@ function ItemList() {
                                         <td className="py-2 px-4">{item.placeId}</td>
                                         <td className="py-2 px-4">{item.selfLife}</td>
                                         <td className="py-2 px-4 max-w-xs break-words">{item.description}</td>
+                                        <td className="py-2 px-4">{item.addedBy}</td>
+                                        <td className="py-2 px-4">{item.addedDate ? new Date(item.addedDate).toLocaleDateString() : ""}</td>
+                                        <td className="py-2 px-4">{item.updatedBy}</td>
+                                        <td className="py-2 px-4">{item.updatedDate ? new Date(item.updatedDate).toLocaleDateString() : ""}</td>
                                         <td className="py-2 px-4">
                                             <div className="flex flex-col gap-2 sm:flex-row">
                                                 <button
@@ -134,14 +251,32 @@ function ItemList() {
                                 ['place', 'Place'],
                                 ['placeId', 'Place ID'],
                                 ['selfLife', 'Self Life'],
+                                ['addedBy', 'Added By'],
+                                ['addedDate', 'Added Date'],
                             ].map(([field, label]) => (
                                 <div key={field} className="grid gap-2">
                                     <label className="text-sm font-medium">{label}</label>
                                     <input
                                         name={field}
-                                        value={editItem[field] ?? ''}
+                                        type={field.includes('Date') ? 'date' : 'text'}
+                                        value={field.includes('Date') && editItem[field] ? editItem[field].slice(0, 10) : (editItem[field] ?? '')}
                                         onChange={handleEditChange}
                                         className="w-full border rounded-lg px-3 py-2"
+                                    />
+                                </div>
+                            ))}
+                            {[
+                                ['updatedBy', 'Updated By'],
+                                ['updatedDate', 'Updated Date'],
+                            ].map(([field, label]) => (
+                                <div key={field} className="grid gap-2">
+                                    <label className="text-sm font-medium">{label}</label>
+                                    <input
+                                        name={field}
+                                        type={field.includes('Date') ? 'date' : 'text'}
+                                        value={field.includes('Date') && editItem[field] ? editItem[field].slice(0, 10) : (editItem[field] ?? '')}
+                                        readOnly
+                                        className="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed"
                                     />
                                 </div>
                             ))}

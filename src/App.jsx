@@ -5,7 +5,9 @@ import Navbar from "./constants/Navbar.jsx";
 import Stores from "./pages/auth/Stores.jsx";
 import Newitems from "./pages/auth/Newitems.jsx";
 import ItemList from "./pages/auth/ItemList.jsx";
+import ItemInOut from "./pages/auth/ItemInOut.jsx";
 import AllUsers from "./pages/auth/AllUser.jsx";
+import User from "./pages/auth/User.jsx";
 
 import {
   BrowserRouter as Router,
@@ -19,6 +21,8 @@ import Doto from "./pages/auth/Doto.jsx";
 import ListTask from "./pages/auth/ListTask.jsx";
 import { Employee } from "./pages/auth/Employee.jsx";
 import AllEmployee from "./pages/Allemployee.jsx";
+import SalarySlip from "./pages/salarySlip.jsx";
+import AllUser from "./pages/auth/AllUser.jsx";
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("token");
@@ -63,6 +67,15 @@ function Layout() {
             <ProtectedRoute>
               <ListTask />
               List Tasks
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/salary-slip"
+          element={
+            <ProtectedRoute>
+              <SalarySlip />
+              Salary Details
             </ProtectedRoute>
           }
         />
@@ -117,6 +130,26 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+        {/* user registration */}
+        <Route
+          path="/user"
+          element={
+            <ProtectedRoute>
+              <User />
+              Add User
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/all-users"
+          element={
+            <ProtectedRoute>
+              <AllUser />
+              All Users
+            </ProtectedRoute>
+          }
+        />
+        {/* user registration */}
         <Route
           path="/itemList"
           element={
@@ -132,6 +165,14 @@ function Layout() {
             <ProtectedRoute>
               <Newitems />
               Add New Items
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/item-inout"
+          element={
+            <ProtectedRoute>
+              <ItemInOut />
             </ProtectedRoute>
           }
         />

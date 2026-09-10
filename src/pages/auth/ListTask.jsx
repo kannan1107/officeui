@@ -17,6 +17,8 @@ function ListTask() {
   const [optimisticStatus, setOptimisticStatus] = useState({});
   const [reviewInputs, setReviewInputs] = useState({});
   const [commentInputs, setCommentInputs] = useState({});
+  const [savedReviews, setSavedReviews] = useState({});
+  const [savedComments, setSavedComments] = useState({});
   const [updatingIds, setUpdatingIds] = useState({});
 
   const usersData = Array.isArray(users)
@@ -94,13 +96,33 @@ function ListTask() {
 
   // Review is often saved as 'review' or 'commend' in databases
   const saveReview = async (id) => {
-    const val = reviewInputs[id] ?? messagesData.find((m) => m._id === id)?.review ?? "";
-    await updateTaskField(id, { review: val });
+    const val =
+      reviewInputs[id] ?? messagesData.find((m) => m._id === id)?.review ?? "";
+    const ok = await updateTaskField(id, { review: val });
+    if (ok) {
+      setSavedReviews((s) => ({ ...s, [id]: val }));
+      setReviewInputs((s) => {
+        const n = { ...s };
+        delete n[id];
+        return n;
+      });
+    }
   };
 
   const saveComment = async (id) => {
-    const val = commentInputs[id] ?? messagesData.find((m) => m._id === id)?.comment ?? "";
-    await updateTaskField(id, { comment: val });
+    const val =
+      commentInputs[id] ??
+      messagesData.find((m) => m._id === id)?.comment ??
+      "";
+    const ok = await updateTaskField(id, { comment: val });
+    if (ok) {
+      setSavedComments((s) => ({ ...s, [id]: val }));
+      setCommentInputs((s) => {
+        const n = { ...s };
+        delete n[id];
+        return n;
+      });
+    }
   };
 
   if (isLoading) return <div className="text-center py-10">Loading...</div>;
@@ -230,6 +252,25 @@ function ListTask() {
                             className={`capitalize font-bold ${displayStatus === "completed" ? "text-green-600" : "text-yellow-600"}`}
                           >
                             {displayStatus}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs font-semibold">
+                            REVIEW
+                          </p>
+                          <p className="font-medium">
+                            {savedReviews[msgId] ||
+                              msg.review ||
+                              msg.commend ||
+                              "No Review"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs font-semibold">
+                            COMMENT
+                          </p>
+                          <p className="font-medium">
+                            {savedComments[msgId] || msg.comment || "N/A"}
                           </p>
                         </div>
                       </div>

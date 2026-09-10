@@ -23,11 +23,12 @@ export const appApi = createApi({
   endpoints: (builder) => ({
     sendOtp: builder.mutation({
       query: (email) => ({
-        url: "/api/auth/login",
+        url: "/api/auth/send-otp",
         method: "POST",
         body: email,
       }),
     }),
+
     verifyOtp: builder.mutation({
       query: (otpData) => ({
         url: "/api/auth/verify-otp",
@@ -38,6 +39,34 @@ export const appApi = createApi({
     getChats: builder.query({
       query: () => "/api/chats",
     }),
+
+    // new user registation
+    postUser: builder.mutation({
+      query: (userData) => ({
+        url: "/api/auth/register",
+        method: "POST",
+        body: userData,
+      }),
+    }),
+
+    // get the all users
+    getUsers: builder.query({
+      query: () => "/api/users/all",
+    }),
+    updateUser: builder.mutation({
+      query: ({ id, data }) => ({
+        url: `/api/users/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+    }),
+    deleteUser: builder.mutation({
+      query: (id) => ({
+        url: `/api/users/${id}`,
+        method: "DELETE",
+      }),
+    }),
+
     createChat: builder.mutation({
       query: (newChat) => ({
         url: "/api/chats",
@@ -48,9 +77,6 @@ export const appApi = createApi({
     }),
     getChatById: builder.query({
       query: (chatId) => `/api/chats/${chatId}`,
-    }),
-    getUsers: builder.query({
-      query: () => "/api/users/all",
     }),
     sendMessage: builder.mutation({
       query: (formData) => ({
@@ -211,7 +237,7 @@ export const appApi = createApi({
       }),
     }),
     getEmployee: builder.mutation({
-      query: (id) => ({
+      query: () => ({
         url: `/api/employee/getAllEmployees`,
         method: "GET",
       }),
@@ -241,6 +267,8 @@ export const {
   useCreateChatMutation,
   useGetChatByIdQuery,
   useGetUsersQuery,
+  useUpdateUserMutation,
+  useDeleteUserMutation,
   useSendMessageMutation,
   useGetConversationQuery,
   useEditMessageMutation,
@@ -270,4 +298,5 @@ export const {
   useGetEmployeeMutation,
   useDeleteEmployeeMutation,
   useUpdateProfileMutation,
+  usePostUserMutation,
 } = appApi;
