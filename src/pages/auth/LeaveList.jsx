@@ -11,18 +11,15 @@ const STATUS_COLOR = {
 };
 
 function LeaveList() {
-    const loginEmail = localStorage.getItem("email") || "";
     const { data: usersData, refetch: refetchUsers } = useGetUsersQuery();
     const [updateUser, { isLoading: updatingBalance }] = useUpdateUserMutation();
 
     const users = Array.isArray(usersData) ? usersData : usersData?.users || usersData?.data || [];
-    const currentUser = users.find((u) => u.email === loginEmail) || {};
-    const canManage = ["admin", "hr"].includes(currentUser.role);
     const allLeaves = users.flatMap((u) =>
         (u.leaves || []).map((l) => ({ ...l, userName: u.name, userEmail: u.email, userId: u._id || u.id, userObj: u }))
     );
 
-    const [tab, setTab] = useState(canManage ? "balance" : "applications");
+    const [tab, setTab] = useState("balance");
     const [editBalance, setEditBalance] = useState(null);
     const [balanceForm, setBalanceForm] = useState({ el: 0, cl: 0, sl: 0, comfoff: 0 });
     const [search, setSearch] = useState("");
@@ -77,7 +74,7 @@ function LeaveList() {
 
                     {/* Tabs */}
                     <div className="flex gap-2 mb-4">
-                        {([["applications", "Leave Applications"], ...(canManage ? [["balance", "Leave Balance"]] : [])]).map(([key, label]) => (
+                        {[["balance", "Leave Balance"], ["applications", "Leave Applications"]].map(([key, label]) => (
                             <button
                                 key={key}
                                 onClick={() => setTab(key)}
@@ -134,14 +131,12 @@ function LeaveList() {
                                                 <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded font-semibold">{user.comfoff ?? 0}</span>
                                             </td>
                                             <td className="py-2 px-4">
-                                                {canManage ? (
-                                                    <button
-                                                        onClick={() => openEditBalance(user)}
-                                                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-xs"
-                                                    >
-                                                        Edit Balance
-                                                    </button>
-                                                ) : <span className="text-gray-400 text-xs">—</span>}
+                                                <button
+                                                    onClick={() => openEditBalance(user)}
+                                                    className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-xs"
+                                                >
+                                                    Edit Balance
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -183,7 +178,7 @@ function LeaveList() {
                                                 </span>
                                             </td>
                                             <td className="py-2 px-4">
-                                                {canManage && (leave.status === "pending" || !leave.status) ? (
+                                                {(leave.status === "pending" || !leave.status) ? (
                                                     <div className="flex gap-1">
                                                         <button
                                                             onClick={() => handleStatusChange(leave, "approved")}

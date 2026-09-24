@@ -48,9 +48,9 @@ function ItemList() {
             "Place ID": item.placeId,
             "Self Life": item.selfLife,
             "Description": item.description,
-            "Added By": item.addedBy,
+            "Added By": typeof item.addedBy === "object" ? item.addedBy?.name || item.addedBy?.email || "" : item.addedBy,
             "Added Date": item.addedDate ? new Date(item.addedDate).toLocaleDateString() : "",
-            "Updated By": item.updatedBy,
+            "Updated By": typeof item.updatedBy === "object" ? item.updatedBy?.name || item.updatedBy?.email || "" : item.updatedBy,
             "Updated Date": item.updatedDate ? new Date(item.updatedDate).toLocaleDateString() : "",
         }));
         const ws = XLSX.utils.json_to_sheet(rows);
@@ -67,6 +67,12 @@ function ItemList() {
         } catch (err) {
             alert("Delete failed: " + (err?.data?.message || err?.error || "Unknown error"));
         }
+    };
+
+    const strVal = (field, val) => {
+        if (field.includes('Date')) return val ? String(val).slice(0, 10) : '';
+        if (typeof val === 'object' && val !== null) return val?.name || val?.email || '';
+        return val ?? '';
     };
 
     const handleEditChange = (e) => {
@@ -200,9 +206,9 @@ function ItemList() {
                                         <td className="py-2 px-4">{item.placeId}</td>
                                         <td className="py-2 px-4">{item.selfLife}</td>
                                         <td className="py-2 px-4 max-w-xs break-words">{item.description}</td>
-                                        <td className="py-2 px-4">{item.addedBy}</td>
+                                        <td className="py-2 px-4">{typeof item.addedBy === "object" ? item.addedBy?.name || item.addedBy?.email || "" : item.addedBy}</td>
                                         <td className="py-2 px-4">{item.addedDate ? new Date(item.addedDate).toLocaleDateString() : ""}</td>
-                                        <td className="py-2 px-4">{item.updatedBy}</td>
+                                        <td className="py-2 px-4">{typeof item.updatedBy === "object" ? item.updatedBy?.name || item.updatedBy?.email || "" : item.updatedBy}</td>
                                         <td className="py-2 px-4">{item.updatedDate ? new Date(item.updatedDate).toLocaleDateString() : ""}</td>
                                         <td className="py-2 px-4">
                                             <div className="flex flex-col gap-2 sm:flex-row">
@@ -259,7 +265,7 @@ function ItemList() {
                                     <input
                                         name={field}
                                         type={field.includes('Date') ? 'date' : 'text'}
-                                        value={field.includes('Date') && editItem[field] ? editItem[field].slice(0, 10) : (editItem[field] ?? '')}
+                                        value={strVal(field, editItem[field])}
                                         onChange={handleEditChange}
                                         className="w-full border rounded-lg px-3 py-2"
                                     />
@@ -274,7 +280,7 @@ function ItemList() {
                                     <input
                                         name={field}
                                         type={field.includes('Date') ? 'date' : 'text'}
-                                        value={field.includes('Date') && editItem[field] ? editItem[field].slice(0, 10) : (editItem[field] ?? '')}
+                                        value={strVal(field, editItem[field])}
                                         readOnly
                                         className="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed"
                                     />

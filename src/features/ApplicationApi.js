@@ -4,7 +4,7 @@ const baseUrl = import.meta.env.VITE_BASE_URL;
 
 export const appApi = createApi({
   reducerPath: "api",
-  tagTypes: ["Event", "Doto"],
+  tagTypes: ["Event", "Doto", "Leave"],
   baseQuery: fetchBaseQuery({
     baseUrl,
     prepareHeaders: (headers, { getState }) => {
@@ -251,11 +251,34 @@ export const appApi = createApi({
     }),
     updateProfile: builder.mutation({
       query: ({ id, data }) => ({
-        // REMOVED the colon before ${id}
         url: `/api/employee/updateEmployee/${id}`,
         method: "PUT",
         body: data,
       }),
+    }),
+    applyLeave: builder.mutation({
+      query: (data) => ({
+        url: "/api/leave/apply",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Leave"],
+    }),
+    getMyLeaves: builder.query({
+      query: (userId) => `/api/leave/user/${userId}`,
+      providesTags: ["Leave"],
+    }),
+    getAllLeaves: builder.query({
+      query: () => "/api/leave/all",
+      providesTags: ["Leave"],
+    }),
+    updateLeaveStatus: builder.mutation({
+      query: ({ id, status }) => ({
+        url: `/api/leave/${id}/status`,
+        method: "PUT",
+        body: { status },
+      }),
+      invalidatesTags: ["Leave"],
     }),
   }),
 });
@@ -299,4 +322,8 @@ export const {
   useDeleteEmployeeMutation,
   useUpdateProfileMutation,
   usePostUserMutation,
+  useApplyLeaveMutation,
+  useGetMyLeavesQuery,
+  useGetAllLeavesQuery,
+  useUpdateLeaveStatusMutation,
 } = appApi;

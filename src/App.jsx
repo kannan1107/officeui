@@ -6,6 +6,8 @@ import Stores from "./pages/auth/Stores.jsx";
 import Newitems from "./pages/auth/Newitems.jsx";
 import ItemList from "./pages/auth/ItemList.jsx";
 import ItemInOut from "./pages/auth/ItemInOut.jsx";
+import ProfileSettings from "./pages/auth/ProfileSettings.jsx";
+import LeaveList from "./pages/auth/LeaveList.jsx";
 import AllUsers from "./pages/auth/AllUser.jsx";
 import User from "./pages/auth/User.jsx";
 
@@ -23,6 +25,7 @@ import { Employee } from "./pages/auth/Employee.jsx";
 import AllEmployee from "./pages/Allemployee.jsx";
 import SalarySlip from "./pages/salarySlip.jsx";
 import AllUser from "./pages/auth/AllUser.jsx";
+import Approvel from "./pages/auth/Approvel.jsx";
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("token");
@@ -159,6 +162,7 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/new-items"
           element={
@@ -176,7 +180,31 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfileSettings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/leave-list"
+          element={
+            <ProtectedRoute>
+              <LeaveList />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
+        <Route
+          path="/leave"
+          element={
+            <ProtectedRoute>
+              <Approvel />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </>
   );

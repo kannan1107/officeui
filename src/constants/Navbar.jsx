@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+// logo  import
+import logo from "../assets/logo.jpg";
 
 function Navbar() {
   const [open, setOpen] = useState(false);
@@ -32,7 +34,9 @@ function Navbar() {
     <nav className="bg-white fixed w-full z-20 top-0 start-0 border-b border-gray-200 shadow-sm">
       <div className="max-w-screen-xl flex items-center justify-between mx-auto px-4 py-3">
         <a href="/" className="text-xl font-bold text-blue-700">
-          MyApp
+          {/* logo image */}
+          <img src={logo} alt="Logo" className="h-8 w-auto inline-block mr-2" />
+          kannan Aviation
         </a>
 
         <ul className="hidden md:flex space-x-6 text-sm font-medium text-gray-600">
@@ -102,6 +106,15 @@ function Navbar() {
                   className="block px-4 py-2 hover:bg-gray-100"
                 >
                   Item In / Out
+                </a>
+                <a
+                  href="/leave-list"
+                  className="block px-4 py-2 hover:bg-gray-100"
+                >
+                  Leave List
+                </a>
+                <a href="/leave" className="block px-4 py-2 hover:bg-gray-100">
+                  Leave Approvel
                 </a>
                 <a href="/user" className="block px-4 py-2 hover:bg-gray-100">
                   Add User
@@ -183,7 +196,7 @@ function Navbar() {
                 </li>
                 <li>
                   <a
-                    href="#"
+                    href="/profile"
                     className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50"
                   >
                     ⚙️ Settings
