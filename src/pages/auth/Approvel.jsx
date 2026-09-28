@@ -12,14 +12,17 @@ const STATUS_COLOR = {
 
 function Approvel() {
   const loginEmail = localStorage.getItem("email") || "";
+
   const { data: usersData, refetch: refetchUsers } = useGetUsersQuery();
   const [updateUser, { isLoading: updatingBalance }] = useUpdateUserMutation();
 
   const users = Array.isArray(usersData)
     ? usersData
     : usersData?.users || usersData?.data || [];
+
   const currentUser = users.find((u) => u.email === loginEmail) || {};
   const canManage = ["admin", "hr"].includes(currentUser.role);
+
   const allLeaves = users.flatMap((u) =>
     (u.leaves || []).map((l) => ({
       ...l,
@@ -30,14 +33,16 @@ function Approvel() {
     })),
   );
 
-  const [tab, setTab] = useState(canManage ? "balance" : "applications");
+  const [tab, setTab] = useState("applications");
   const [editBalance, setEditBalance] = useState(null);
+
   const [balanceForm, setBalanceForm] = useState({
     el: 0,
     cl: 0,
     sl: 0,
     comfoff: 0,
   });
+
   const [search, setSearch] = useState("");
   const [updatingLeaveId, setUpdatingLeaveId] = useState(null);
 
@@ -59,6 +64,7 @@ function Approvel() {
 
   const openEditBalance = (user) => {
     setEditBalance(user);
+
     setBalanceForm({
       el: user.el ?? 0,
       cl: user.cl ?? 0,
@@ -69,9 +75,15 @@ function Approvel() {
 
   const handleBalanceSave = async (e) => {
     e.preventDefault();
+
     const id = editBalance._id || editBalance.id;
+
     try {
-      await updateUser({ id, data: balanceForm }).unwrap();
+      await updateUser({
+        id,
+        data: balanceForm,
+      }).unwrap();
+
       setEditBalance(null);
       refetchUsers();
     } catch (err) {
@@ -81,17 +93,27 @@ function Approvel() {
 
   const handleStatusChange = async (leave, status) => {
     setUpdatingLeaveId(leave._id);
+
     const user = leave.userObj;
     const id = user._id || user.id;
+
     const updatedLeaves = (user.leaves || []).map((l) =>
       l._id === leave._id ? { ...l, status } : l,
     );
+
     try {
-      await updateUser({ id, data: { leaves: updatedLeaves } }).unwrap();
+      await updateUser({
+        id,
+        data: {
+          leaves: updatedLeaves,
+        },
+      }).unwrap();
+
       refetchUsers();
     } catch (err) {
       alert("Status update failed: " + (err?.data?.message || "Unknown error"));
     }
+
     setUpdatingLeaveId(null);
   };
 
@@ -105,18 +127,29 @@ function Approvel() {
 
           {/* Tabs */}
           <div className="flex gap-2 mb-4">
-            {[
-              ["applications", "Leave Applications"],
-              ...(canManage ? [["balance", "Leave Balance"]] : []),
-            ].map(([key, label]) => (
+            <button
+              onClick={() => setTab("applications")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                tab === "applications"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Leave Applications
+            </button>
+
+            {canManage && (
               <button
-                key={key}
-                onClick={() => setTab(key)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === key ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                onClick={() => setTab("balance")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  tab === "balance"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
               >
-                {label}
+                Leave Balance
               </button>
-            ))}
+            )}
           </div>
 
           {/* Search */}
@@ -144,6 +177,7 @@ function Approvel() {
                     <th className="py-2 px-4">Actions</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {filteredUsers.length === 0 ? (
                     <tr>
@@ -161,30 +195,37 @@ function Approvel() {
                         className="border-b hover:bg-gray-50"
                       >
                         <td className="py-2 px-4 font-medium">{user.name}</td>
+
                         <td className="py-2 px-4 text-gray-500">
                           {user.email}
                         </td>
+
                         <td className="py-2 px-4">{user.department || "—"}</td>
+
                         <td className="py-2 px-4 text-center">
                           <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-semibold">
                             {user.el ?? 0}
                           </span>
                         </td>
+
                         <td className="py-2 px-4 text-center">
                           <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded font-semibold">
                             {user.cl ?? 0}
                           </span>
                         </td>
+
                         <td className="py-2 px-4 text-center">
                           <span className="bg-orange-50 text-orange-700 px-2 py-0.5 rounded font-semibold">
                             {user.sl ?? 0}
                           </span>
                         </td>
+
                         <td className="py-2 px-4 text-center">
                           <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded font-semibold">
                             {user.comfoff ?? 0}
                           </span>
                         </td>
+
                         <td className="py-2 px-4">
                           {canManage ? (
                             <button
@@ -221,6 +262,7 @@ function Approvel() {
                     <th className="py-2 px-4">Actions</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {filteredLeaves.length === 0 ? (
                     <tr>
@@ -240,30 +282,40 @@ function Approvel() {
                         <td className="py-2 px-4 font-medium">
                           {leave.userName}
                         </td>
+
                         <td className="py-2 px-4 text-gray-500">
                           {leave.userEmail}
                         </td>
+
                         <td className="py-2 px-4 capitalize">{leave.type}</td>
+
                         <td className="py-2 px-4">
                           {leave.from
                             ? new Date(leave.from).toLocaleDateString()
                             : "—"}
                         </td>
+
                         <td className="py-2 px-4">
                           {leave.to
                             ? new Date(leave.to).toLocaleDateString()
                             : "—"}
                         </td>
+
                         <td className="py-2 px-4 max-w-[150px] truncate">
                           {leave.reason}
                         </td>
+
                         <td className="py-2 px-4">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLOR[leave.status] || "bg-gray-100 text-gray-600"}`}
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              STATUS_COLOR[leave.status] ||
+                              "bg-gray-100 text-gray-600"
+                            }`}
                           >
                             {leave.status || "pending"}
                           </span>
                         </td>
+
                         <td className="py-2 px-4">
                           {canManage &&
                           (leave.status === "pending" || !leave.status) ? (
@@ -277,6 +329,7 @@ function Approvel() {
                               >
                                 Approve
                               </button>
+
                               <button
                                 onClick={() =>
                                   handleStatusChange(leave, "rejected")
@@ -309,6 +362,7 @@ function Approvel() {
               <h3 className="text-lg font-bold">
                 Edit Leave Balance — {editBalance.name}
               </h3>
+
               <button
                 onClick={() => setEditBalance(null)}
                 className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
@@ -316,20 +370,22 @@ function Approvel() {
                 ✕
               </button>
             </div>
+
             <form
               onSubmit={handleBalanceSave}
               className="grid grid-cols-2 gap-4"
             >
               {[
-                ["el", "EL (Earned Leave)", "blue"],
-                ["cl", "CL (Casual Leave)", "green"],
-                ["sl", "SL (Sick Leave)", "orange"],
-                ["comfoff", "Comp Off", "purple"],
-              ].map(([field, label, color]) => (
+                ["el", "EL (Earned Leave)"],
+                ["cl", "CL (Casual Leave)"],
+                ["sl", "SL (Sick Leave)"],
+                ["comfoff", "Comp Off"],
+              ].map(([field, label]) => (
                 <div key={field}>
                   <label className="block text-xs text-gray-500 mb-1">
                     {label}
                   </label>
+
                   <input
                     type="number"
                     min="0"
@@ -344,6 +400,7 @@ function Approvel() {
                   />
                 </div>
               ))}
+
               <div className="col-span-2 flex gap-2 pt-2">
                 <button
                   type="submit"
@@ -352,6 +409,7 @@ function Approvel() {
                 >
                   {updatingBalance ? "Saving..." : "Save Balance"}
                 </button>
+
                 <button
                   type="button"
                   onClick={() => setEditBalance(null)}

@@ -89,17 +89,23 @@ function Navbar() {
                 <a href="/stores" className="block px-4 py-2 hover:bg-gray-100">
                   Stores
                 </a>
+                <a href="/grn" className="block px-4 py-2 hover:bg-gray-100">
+                  GRN
+                </a>
+                <a href="/grn-approval" className="block px-4 py-2 hover:bg-gray-100">
+                  GRN Approval
+                </a>
                 <a
-                  href="/new-items"
+                  href="/stock-checkout"
                   className="block px-4 py-2 hover:bg-gray-100"
                 >
-                  New Items
+                  Stock Checkout
                 </a>
                 <a
                   href="/itemList"
                   className="block px-4 py-2 hover:bg-gray-100"
                 >
-                  Spars
+                  Stores Update
                 </a>
                 <a
                   href="/item-inout"

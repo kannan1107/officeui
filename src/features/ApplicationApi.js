@@ -4,7 +4,7 @@ const baseUrl = import.meta.env.VITE_BASE_URL;
 
 export const appApi = createApi({
   reducerPath: "api",
-  tagTypes: ["Event", "Doto", "Leave"],
+  tagTypes: ["Event", "Doto", "Leave", "Item"],
   baseQuery: fetchBaseQuery({
     baseUrl,
     prepareHeaders: (headers, { getState }) => {
@@ -116,10 +116,12 @@ export const appApi = createApi({
         body: itemData,
         formData: true,
       }),
+      invalidatesTags: ["Item"],
     }),
     // get all items and details
     getItems: builder.query({
       query: () => "/api/items",
+      providesTags: ["Item"],
     }),
     getItemById: builder.query({
       query: (itemId) => `/api/items/${itemId}`,
@@ -140,12 +142,14 @@ export const appApi = createApi({
           body: updatedData,
         };
       },
+      invalidatesTags: ["Item"],
     }),
     deleteItem: builder.mutation({
       query: (itemId) => ({
         url: `/api/items/${itemId}`,
         method: "DELETE",
       }),
+      invalidatesTags: ["Item"],
     }),
     createStore: builder.mutation({
       query: (data) => ({ url: "/api/stores", method: "POST", body: data }),

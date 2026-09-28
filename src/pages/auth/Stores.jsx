@@ -14,6 +14,7 @@ function Stores() {
     ? response
     : response?.items || response?.data || [];
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [editItem, setEditItem] = useState(null);
   const [viewId, setViewId] = useState(null);
   const [imageZoom, setImageZoom] = useState(1);
@@ -28,18 +29,27 @@ function Stores() {
   const [deleteItem, { isLoading: deleting }] = useDeleteItemMutation();
   const [itemStockOut] = useItemStockOutMutation();
 
-  const filtered = items.filter((item) =>
-    [
-      item.itemname,
-      item.batch,
-      item.category,
-      item.partno,
-      item.alternativePart,
-    ].some((val) =>
-      String(val ?? "")
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-    ),
+  const filtered = items.filter(
+    (item) =>
+      item.approvalStatus === "approved" &&
+      [
+        item.itemname,
+        item.batch,
+        item.category,
+        item.partno,
+        item.alternativePart,
+      ].some((val) =>
+        String(val ?? "")
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+      ),
+  );
+  const itemsPerPage = 20;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const page = Math.min(currentPage, totalPages);
+  const paginatedItems = filtered.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage,
   );
 
   // always read live item from items array
@@ -338,7 +348,10 @@ function Stores() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Search by name, batch, part no, alt part, category..."
             className="w-full border rounded-lg px-3 py-2 mb-4"
           />
@@ -348,9 +361,10 @@ function Stores() {
                 <tr className="border-b bg-gray-50 text-left">
                   {[
                     "Item Name",
-                    "Batch",
+
                     "Part No",
                     "Alt Part",
+                    "serial no",
                     "Category",
                     "Place",
                     "Place ID",
@@ -358,6 +372,7 @@ function Stores() {
                     "Location ID",
                     "Condition",
                     "Balance",
+                    "Batch",
                     "Certificate",
                     "Getter Name",
                     "Get Quantity",
@@ -375,7 +390,7 @@ function Stores() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((item) =>
+                {paginatedItems.map((item) =>
                   (() => {
                     const certificateUrl = getCertificateUrl(item);
                     return (
@@ -387,9 +402,14 @@ function Stores() {
                           {item.itemname}
                         </td>
 
-                        <td className="py-2 px-4">{item.batch}</td>
-                        <td className="py-2 px-4">{item.partno}</td>
-                        <td className="py-2 px-4">{item.alternativePart}</td>
+                        <td className="py-2 px-4 min-w-[150px]">
+                          {item.partno}
+                        </td>
+                        <td className="py-2 px-4 min-w-[150px]">
+                          {item.alternativePart}
+                        </td>
+                        <td className="py-2 px-4">{item.sno}</td>
+
                         <td className="py-2 px-4">{item.category}</td>
                         <td className="py-2 px-4">{item.place}</td>
                         <td className="py-2 px-4">{item.placeId}</td>
@@ -398,6 +418,7 @@ function Stores() {
 
                         <td className="py-2 px-4">{item.condition}</td>
                         <td className="py-2 px-4">{item.quantity}</td>
+                        <td className="py-2 px-4">{item.batch}</td>
                         <td className="py-2 px-4">
                           {certificateUrl ? (
                             <a
@@ -431,7 +452,9 @@ function Stores() {
                         <td className="py-2 px-4">
                           {(item.outHistory || []).length}
                         </td>
-                        <td className="py-2 px-4">{item.description}</td>
+                        <td className="py-2 px-4 min-w-[200px]">
+                          {item.description}
+                        </td>
                         <td className="py-2 px-4">
                           <div className="flex gap-2">
                             <button
@@ -475,6 +498,39 @@ function Stores() {
               </tbody>
             </table>
           </div>
+          <div className="mt-4 flex items-center justify-between border-t pt-4 text-sm text-gray-600">
+            <span>
+              Showing{" "}
+              {filtered.length === 0 ? 0 : (page - 1) * itemsPerPage + 1}-
+              {Math.min(page * itemsPerPage, filtered.length)} of{" "}
+              {filtered.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((value) => Math.max(1, value - 1))
+                }
+                disabled={page === 1}
+                className="rounded border px-3 py-1.5 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((value) => Math.min(totalPages, value + 1))
+                }
+                disabled={page === totalPages}
+                className="rounded border px-3 py-1.5 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -488,217 +544,222 @@ function Stores() {
           );
           const balance = Number(viewItem.quantity) || 0;
           return (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-bold">{viewItem.itemname}</h3>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b px-6 py-4">
+                  <h3 className="min-w-0 truncate text-xl font-bold">
+                    {viewItem.itemname}
+                  </h3>
                   <button
                     type="button"
                     onClick={closeViewDetails}
                     aria-label="Close item details"
                     title="Close item details"
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-2xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-2xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                   >
                     ✕
                   </button>
                 </div>
-                {viewItem.image && (
-                  <div className="relative h-48 overflow-hidden rounded-lg mb-4 bg-gray-100">
-                    <img
-                      src={viewItem.image}
-                      alt={viewItem.itemname}
-                      onClick={() =>
-                        openImageViewer(viewItem.image, viewItem.itemname)
-                      }
-                      title="Open image in a new window"
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          openImageViewer(viewItem.image, viewItem.itemname);
+                <div className="overflow-y-auto px-6 py-4">
+                  {viewItem.image && (
+                    <div className="relative h-48 overflow-hidden rounded-lg mb-4 bg-gray-100">
+                      <img
+                        src={viewItem.image}
+                        alt={viewItem.itemname}
+                        onClick={() =>
+                          openImageViewer(viewItem.image, viewItem.itemname)
                         }
-                      }}
-                      className="w-full h-full object-contain transition-transform duration-200"
-                      style={{ transform: `scale(${imageZoom})` }}
-                    />
-                    <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded-lg bg-black/70 p-1 text-white">
+                        title="Open image in a new window"
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            openImageViewer(viewItem.image, viewItem.itemname);
+                          }
+                        }}
+                        className="w-full h-full object-contain transition-transform duration-200"
+                        style={{ transform: `scale(${imageZoom})` }}
+                      />
+                      <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded-lg bg-black/70 p-1 text-white">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setImageZoom((zoom) => Math.max(1, zoom - 0.25))
+                          }
+                          disabled={imageZoom === 1}
+                          title="Zoom out"
+                          aria-label="Zoom out"
+                          className="h-8 w-8 rounded text-xl leading-none hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          −
+                        </button>
+                        <span className="min-w-12 text-center text-xs">
+                          {Math.round(imageZoom * 100)}%
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setImageZoom((zoom) => Math.min(3, zoom + 0.25))
+                          }
+                          disabled={imageZoom === 3}
+                          title="Zoom in"
+                          aria-label="Zoom in"
+                          className="h-8 w-8 rounded text-xl leading-none hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                    {[
+                      ["Item Name", viewItem.itemname],
+                      ["Serial No", viewItem.sno],
+                      ["Batch", viewItem.batch],
+                      ["Part No", viewItem.partno],
+                      ["Alternative Part", viewItem.alternativePart],
+                      ["Category", viewItem.category],
+                      ["Condition", viewItem.condition],
+                      ["Quantity", viewItem.quantity],
+                      ["Status", viewItem.status],
+                      ["Location", viewItem.location],
+                      ["Location ID", viewItem.locationId],
+                      ["Place", viewItem.place],
+                      ["Place ID", viewItem.placeId],
+                      ["Self Life", viewItem.selfLife],
+                      ["In History", (viewItem.inHistory || []).length],
+                      ["Out History", (viewItem.outHistory || []).length],
+                    ].map(([label, val]) =>
+                      val ? (
+                        <div
+                          key={label}
+                          className="bg-gray-50 rounded-lg px-3 py-2"
+                        >
+                          <p className="text-gray-400 text-xs">{label}</p>
+                          <p className="font-medium">{val}</p>
+                        </div>
+                      ) : null,
+                    )}
+                  </div>
+
+                  {viewItem.description && (
+                    <div className="mt-3 bg-gray-50 rounded-lg px-3 py-2 text-sm">
+                      <p className="text-gray-400 text-xs mb-1">Description</p>
+                      <p>{viewItem.description}</p>
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex flex-col items-start justify-between gap-3 rounded-lg bg-blue-50 px-3 py-2 text-sm sm:flex-row sm:items-center">
+                    <div>
+                      <p className="text-gray-400 text-xs">Certificate</p>
+                      <p className="font-medium">
+                        {getCertificateUrl(viewItem)
+                          ? "Certificate document available"
+                          : "No certificate uploaded for this item"}
+                      </p>
+                    </div>
+                    {getCertificateUrl(viewItem) ? (
+                      <a
+                        href={getCertificateUrl(viewItem)}
+                        download={`${viewItem.itemname || "item"}-certificate`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-white hover:bg-blue-700"
+                      >
+                        Download Certificate
+                      </a>
+                    ) : (
                       <button
                         type="button"
-                        onClick={() =>
-                          setImageZoom((zoom) => Math.max(1, zoom - 0.25))
-                        }
-                        disabled={imageZoom === 1}
-                        title="Zoom out"
-                        aria-label="Zoom out"
-                        className="h-8 w-8 rounded text-xl leading-none hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled
+                        className="shrink-0 rounded-lg bg-gray-300 px-3 py-2 text-gray-500"
                       >
-                        −
+                        Download unavailable
                       </button>
-                      <span className="min-w-12 text-center text-xs">
-                        {Math.round(imageZoom * 100)}%
-                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => downloadTag(viewItem)}
+                    className="mt-3 w-full rounded-lg bg-gray-800 px-3 py-2 text-white hover:bg-gray-900"
+                  >
+                    Download Tag
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate("/item-inout", {
+                        state: { item: viewItem },
+                      })
+                    }
+                    className="mt-3 w-full rounded-lg bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-700"
+                  >
+                    Item In / Out
+                  </button>
+                  {/* Getter Details */}
+                  <div className="mt-4 border-t pt-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="font-semibold text-sm">Getter Details</p>
                       <button
-                        type="button"
-                        onClick={() =>
-                          setImageZoom((zoom) => Math.min(3, zoom + 0.25))
-                        }
-                        disabled={imageZoom === 3}
-                        title="Zoom in"
-                        aria-label="Zoom in"
-                        className="h-8 w-8 rounded text-xl leading-none hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                        onClick={() => {
+                          setGetterItem(viewItem);
+                          setGetterInput({ name: "", quantity: "", date: "" });
+                        }}
+                        className="bg-green-500 text-white text-xs px-3 py-1 rounded hover:bg-green-600"
                       >
-                        +
+                        + Add Getter
                       </button>
                     </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  {[
-                    ["Item Name", viewItem.itemname],
-                    ["Batch", viewItem.batch],
-                    ["Part No", viewItem.partno],
-                    ["Alternative Part", viewItem.alternativePart],
-                    ["Category", viewItem.category],
-                    ["Condition", viewItem.condition],
-                    ["Quantity", viewItem.quantity],
-                    ["Status", viewItem.status],
-                    ["Location", viewItem.location],
-                    ["Location ID", viewItem.locationId],
-                    ["Place", viewItem.place],
-                    ["Place ID", viewItem.placeId],
-                    ["Self Life", viewItem.selfLife],
-                    ["In History", (viewItem.inHistory || []).length],
-                    ["Out History", (viewItem.outHistory || []).length],
-                  ].map(([label, val]) =>
-                    val ? (
-                      <div
-                        key={label}
-                        className="bg-gray-50 rounded-lg px-3 py-2"
+                    <div className="flex gap-4 text-sm mb-3 bg-gray-50 rounded-lg px-4 py-2">
+                      <span>
+                        Total Qty: <strong>{viewItem.quantity || 0}</strong>
+                      </span>
+                      <span>
+                        Total Got: <strong>{totalGot}</strong>
+                      </span>
+                      <span
+                        className={
+                          balance < 0
+                            ? "text-red-500 font-bold"
+                            : "text-green-600 font-bold"
+                        }
                       >
-                        <p className="text-gray-400 text-xs">{label}</p>
-                        <p className="font-medium">{val}</p>
-                      </div>
-                    ) : null,
-                  )}
-                </div>
-
-                {viewItem.description && (
-                  <div className="mt-3 bg-gray-50 rounded-lg px-3 py-2 text-sm">
-                    <p className="text-gray-400 text-xs mb-1">Description</p>
-                    <p>{viewItem.description}</p>
-                  </div>
-                )}
-
-                <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-blue-50 px-3 py-2 text-sm">
-                  <div>
-                    <p className="text-gray-400 text-xs">Certificate</p>
-                    <p className="font-medium">
-                      {getCertificateUrl(viewItem)
-                        ? "Certificate document available"
-                        : "No certificate uploaded for this item"}
-                    </p>
-                  </div>
-                  {getCertificateUrl(viewItem) ? (
-                    <a
-                      href={getCertificateUrl(viewItem)}
-                      download={`${viewItem.itemname || "item"}-certificate`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-white hover:bg-blue-700"
-                    >
-                      Download Certificate
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="shrink-0 rounded-lg bg-gray-300 px-3 py-2 text-gray-500"
-                    >
-                      Download unavailable
-                    </button>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => downloadTag(viewItem)}
-                  className="mt-3 w-full rounded-lg bg-gray-800 px-3 py-2 text-white hover:bg-gray-900"
-                >
-                  Download Tag
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate("/item-inout", {
-                      state: { item: viewItem },
-                    })
-                  }
-                  className="mt-3 w-full rounded-lg bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-700"
-                >
-                  Item In / Out
-                </button>
-                {/* Getter Details */}
-                <div className="mt-4 border-t pt-3">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="font-semibold text-sm">Getter Details</p>
-                    <button
-                      onClick={() => {
-                        setGetterItem(viewItem);
-                        setGetterInput({ name: "", quantity: "", date: "" });
-                      }}
-                      className="bg-green-500 text-white text-xs px-3 py-1 rounded hover:bg-green-600"
-                    >
-                      + Add Getter
-                    </button>
-                  </div>
-                  <div className="flex gap-4 text-sm mb-3 bg-gray-50 rounded-lg px-4 py-2">
-                    <span>
-                      Total Qty: <strong>{viewItem.quantity || 0}</strong>
-                    </span>
-                    <span>
-                      Total Got: <strong>{totalGot}</strong>
-                    </span>
-                    <span
-                      className={
-                        balance < 0
-                          ? "text-red-500 font-bold"
-                          : "text-green-600 font-bold"
-                      }
-                    >
-                      Balance: <strong>{balance}</strong>
-                    </span>
-                  </div>
-                  {getters.length === 0 ? (
-                    <p className="text-gray-400 text-sm text-center py-3">
-                      No getters yet.
-                    </p>
-                  ) : (
-                    <table className="w-full text-sm border rounded-lg overflow-hidden">
-                      <thead>
-                        <tr className="bg-gray-50 text-left">
-                          <th className="px-3 py-2">#</th>
-                          <th className="px-3 py-2">Getter Name</th>
-                          <th className="px-3 py-2">Quantity</th>
-                          <th className="px-3 py-2">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {getters.map((entry, i) => (
-                          <tr key={i} className="hover:bg-gray-50">
-                            <td className="px-3 py-2">{i + 1}</td>
-                            <td className="px-3 py-2">{entry.person}</td>
-                            <td className="px-3 py-2">{entry.quantity}</td>
-                            <td className="px-3 py-2">
-                              {entry.date
-                                ? new Date(entry.date).toLocaleDateString()
-                                : "-"}
-                            </td>
+                        Balance: <strong>{balance}</strong>
+                      </span>
+                    </div>
+                    {getters.length === 0 ? (
+                      <p className="text-gray-400 text-sm text-center py-3">
+                        No getters yet.
+                      </p>
+                    ) : (
+                      <table className="w-full text-sm border rounded-lg overflow-hidden">
+                        <thead>
+                          <tr className="bg-gray-50 text-left">
+                            <th className="px-3 py-2">#</th>
+                            <th className="px-3 py-2">Getter Name</th>
+                            <th className="px-3 py-2">Quantity</th>
+                            <th className="px-3 py-2">Date</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
+                        </thead>
+                        <tbody className="divide-y">
+                          {getters.map((entry, i) => (
+                            <tr key={i} className="hover:bg-gray-50">
+                              <td className="px-3 py-2">{i + 1}</td>
+                              <td className="px-3 py-2">{entry.person}</td>
+                              <td className="px-3 py-2">{entry.quantity}</td>
+                              <td className="px-3 py-2">
+                                {entry.date
+                                  ? new Date(entry.date).toLocaleDateString()
+                                  : "-"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -864,7 +925,6 @@ function Stores() {
                 ["status", "Status"],
                 ["location", "Location"],
                 ["locationId", "Location ID"],
-                ["phone", "Phone"],
                 ["place", "Place"],
                 ["placeId", "Place ID"],
                 ["selfLife", "Self Life"],

@@ -73,6 +73,14 @@ function User() {
                   <option value="">Select Role</option>
                   <option value="admin">Admin</option>
                   <option value="user">User</option>
+                  <option value="manager">Manager</option>
+                  <option value="employee">Employee</option>
+                  <option value="assManager">Ass-Manager</option>
+                  <option value="CEO">CEO</option>
+                  <option value="cto">CTO</option>
+                  <option value="cfo">CFO</option>
+                  <option value="juniortec">junior Tech</option>
+                  <option value="seniortec">senior Tech</option>
                 </select>
               </div>
               <div>

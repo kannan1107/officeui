@@ -26,10 +26,23 @@ import AllEmployee from "./pages/Allemployee.jsx";
 import SalarySlip from "./pages/salarySlip.jsx";
 import AllUser from "./pages/auth/AllUser.jsx";
 import Approvel from "./pages/auth/Approvel.jsx";
+import Spar from "./pages/auth/Spar.jsx";
+import GrnApproval from "./pages/auth/GrnApproval.jsx";
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem("token");
-  return token ? children : <Navigate to="/login" replace />;
+  if (!token) return <Navigate to="/login" replace />;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (payload.exp * 1000 < Date.now()) {
+      localStorage.clear();
+      return <Navigate to="/login" replace />;
+    }
+  } catch {
+    localStorage.clear();
+    return <Navigate to="/login" replace />;
+  }
+  return children;
 }
 
 function Layout() {
@@ -158,17 +171,34 @@ function Layout() {
           element={
             <ProtectedRoute>
               <ItemList />
-              Stores
+              Stores Update
             </ProtectedRoute>
           }
         />
 
         <Route
-          path="/new-items"
+          path="/stock-checkout"
+          element={
+            <ProtectedRoute>
+              <Spar />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/grn"
           element={
             <ProtectedRoute>
               <Newitems />
-              Add New Items
+              GRN
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/grn-approval"
+          element={
+            <ProtectedRoute>
+              <GrnApproval />
             </ProtectedRoute>
           }
         />

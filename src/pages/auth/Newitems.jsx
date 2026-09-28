@@ -1,16 +1,33 @@
 import { useState } from "react";
 import { useSelector } from "react-redux";
-import { usePostItemMutation } from "../../features/ApplicationApi";
+import { useNavigate } from "react-router-dom";
+import {
+  usePostItemMutation,
+  useGetItemsQuery,
+  useGetUsersQuery,
+} from "../../features/ApplicationApi";
 import * as XLSX from "xlsx";
 
 function Newitems() {
   const [postItem, { isLoading }] = usePostItemMutation();
+  const { data: response, refetch } = useGetItemsQuery();
+  const { data: usersResponse } = useGetUsersQuery();
+  const navigate = useNavigate();
   const currentUser = useSelector((state) => state.auth?.user);
   const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+  const loginEmail = localStorage.getItem("email") || "";
+  const users = Array.isArray(usersResponse)
+    ? usersResponse
+    : usersResponse?.users || usersResponse?.data || [];
+  const matchingUser = users.find(
+    (user) => user.email?.toLowerCase() === loginEmail.toLowerCase(),
+  );
   const loggedInUser =
     currentUser?.name ||
     storedUser?.name ||
     storedUser?.fullName ||
+    matchingUser?.name ||
+    loginEmail.split("@")[0] ||
     "Unknown User";
 
   const initialFormData = {
@@ -18,20 +35,22 @@ function Newitems() {
     batch: "",
     category: "",
     image: [],
+    aircraft: "",
     partno: "",
     alternativePart: "",
+    sno: "",
     condition: "",
     quantity: "",
     status: "",
     location: "",
-    locationId: "",
+    tagId: "",
     place: "",
     placeId: "",
     selfLife: "",
     description: "",
     certificate: "",
     addedBy: "",
-    addedDate: "",
+    addedDate: new Date().toISOString().split("T")[0],
   };
 
   const [formData, setFormData] = useState(initialFormData);
@@ -113,13 +132,15 @@ function Newitems() {
           itemname: row.itemname || "",
           batch: row.batch || "",
           category: row.category || "",
+          aircraft: row.aircraft || "",
           partno: row.partno || "",
           alternativePart: row.alternativePart || "",
+          sno: row.sno || "",
           condition: row.condition || "",
           quantity: row.quantity || "",
           status: row.status || "",
           location: row.location || "",
-          locationId: row.locationId || "",
+          tagId: row.tagId || "",
           place: row.place || "",
           placeId: row.placeId || "",
           selfLife: row.selfLife || "",
@@ -184,10 +205,9 @@ function Newitems() {
 
     const submitData = {
       ...formData,
-
       addedBy: loggedInUser,
-
       addedDate: formData.addedDate || new Date().toISOString().split("T")[0],
+      approvalStatus: "pending",
     };
 
     Object.entries(submitData).forEach(([key, val]) => {
@@ -206,16 +226,40 @@ function Newitems() {
 
     try {
       await postItem(data).unwrap();
-
-      alert("Item added successfully!");
-
       setFormData(initialFormData);
       setExcelRows([]);
+      await refetch();
+      navigate("/grn-approval");
     } catch (err) {
       console.error(err);
 
       alert("Failed to add item: " + (err?.data?.message || "Unknown error"));
     }
+  };
+
+  const allItems = Array.isArray(response)
+    ? response
+    : response?.items || response?.data || [];
+  const getAddedByValue = (item) => {
+    if (typeof item.addedBy === "object" && item.addedBy !== null) {
+      return (
+        item.addedBy.name || item.addedBy.fullName || item.addedBy.email || ""
+      );
+    }
+    return String(item.addedBy ?? "");
+  };
+  const mySubmissions = allItems
+    .filter(
+      (i) =>
+        getAddedByValue(i).toLowerCase() === loggedInUser.toLowerCase() &&
+        i.approvalStatus,
+    )
+    .sort((a, b) => new Date(b.addedDate) - new Date(a.addedDate));
+
+  const STATUS_COLOR = {
+    pending: "bg-yellow-100 text-yellow-700",
+    approved: "bg-green-100 text-green-700",
+    rejected: "bg-red-100 text-red-700",
   };
 
   // -----------------------------
@@ -307,6 +351,7 @@ function Newitems() {
                 className="w-full border rounded-lg px-3 py-2"
               />
             </div>
+            {field("Aircraft", "aircraft", "text", "Enter Aircraft")}
 
             {field("Part Number", "partno", "text", "Enter Part Number")}
 
@@ -316,6 +361,7 @@ function Newitems() {
               "text",
               "Enter Alternative Part Number",
             )}
+            {field("SNO", "sno", "text", "Enter Serial Number")}
 
             {field("Condition", "condition", "text", "Enter Item condition")}
 
@@ -325,7 +371,7 @@ function Newitems() {
 
             {field("Location", "location", "text", "Enter item location")}
 
-            {field("Location ID", "locationId", "text", "Enter location ID")}
+            {field("Tag ID", "tagId", "text", "Enter Tag ID")}
 
             {field("Place", "place", "text", "Enter your place")}
 
@@ -340,19 +386,6 @@ function Newitems() {
                 value={loggedInUser}
                 readOnly
                 className="w-full border rounded-lg px-3 py-2 bg-gray-100"
-              />
-            </div>
-
-            {/* Added Date */}
-            <div>
-              <label className="block mb-1 font-medium">Added Date</label>
-
-              <input
-                type="date"
-                name="addedDate"
-                value={formData.addedDate}
-                onChange={handleChange}
-                className="w-full border rounded-lg px-3 py-2"
               />
             </div>
 
@@ -382,6 +415,51 @@ function Newitems() {
             </div>
           </form>
         </div>
+
+        {/* GRN Submissions */}
+        {mySubmissions.length > 0 && (
+          <div className="bg-white shadow-lg rounded-xl p-6 mt-6">
+            <h3 className="text-xl font-bold mb-4">My GRN Submissions</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left border-b">
+                    <th className="py-2 px-4">Item Name</th>
+                    <th className="py-2 px-4">Part No</th>
+                    <th className="py-2 px-4">Quantity</th>
+                    <th className="py-2 px-4">Location</th>
+                    <th className="py-2 px-4">Place</th>
+                    <th className="py-2 px-4">Added Date</th>
+                    <th className="py-2 px-4">Approval Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mySubmissions.map((item) => (
+                    <tr key={item._id} className="border-b hover:bg-gray-50">
+                      <td className="py-2 px-4 font-medium">{item.itemname}</td>
+                      <td className="py-2 px-4">{item.partno || "-"}</td>
+                      <td className="py-2 px-4">{item.quantity}</td>
+                      <td className="py-2 px-4">{item.location || "-"}</td>
+                      <td className="py-2 px-4">{item.place || "-"}</td>
+                      <td className="py-2 px-4">
+                        {item.addedDate
+                          ? new Date(item.addedDate).toLocaleDateString()
+                          : "-"}
+                      </td>
+                      <td className="py-2 px-4">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLOR[item.approvalStatus] || "bg-gray-100 text-gray-600"}`}
+                        >
+                          {item.approvalStatus}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

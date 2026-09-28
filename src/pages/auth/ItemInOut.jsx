@@ -366,7 +366,7 @@ function ItemInOut() {
                     <thead>
                       <tr className="bg-green-50 text-left">
                         <th className="px-3 py-2">#</th>
-                        <th className="px-3 py-2">Person</th>
+                        <th className="px-3 py-2">Added By</th>
                         <th className="px-3 py-2">Qty</th>
                         <th className="px-3 py-2">Date</th>
                         <th className="px-3 py-2">Note</th>
@@ -375,10 +375,7 @@ function ItemInOut() {
                     <tbody className="divide-y">
                       {(selectedItem.inHistory || []).length === 0 ? (
                         <tr>
-                          <td
-                            colSpan={5}
-                            className="text-center text-gray-400 py-3"
-                          >
+                          <td colSpan={5} className="text-center text-gray-400 py-3">
                             No in history.
                           </td>
                         </tr>
@@ -386,7 +383,7 @@ function ItemInOut() {
                         (selectedItem.inHistory || []).map((entry, i) => (
                           <tr key={i} className="hover:bg-gray-50">
                             <td className="px-3 py-2">{i + 1}</td>
-                            <td className="px-3 py-2">{entry.person}</td>
+                            <td className="px-3 py-2">{entry.person || entry.addedBy || "-"}</td>
                             <td className="px-3 py-2 text-green-600 font-semibold">
                               +{entry.quantity}
                             </td>
