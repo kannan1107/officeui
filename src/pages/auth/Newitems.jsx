@@ -196,15 +196,13 @@ function Newitems() {
         // Skip rows that cannot satisfy the backend's required fields.
         const invalidRows = mappedRows.flatMap((row, index) => {
           const missing = [
-            !row.batch && "Batch",
-            !row.category && "Category",
             !row.itemname && "Description",
             !row.partno && "Part Number",
           ].filter(Boolean);
           return missing.length ? [{ rowNumber: index + 2, missing }] : [];
         });
         const validRows = mappedRows.filter(
-          (row) => row.batch && row.category && row.itemname && row.partno,
+          (row) => row.itemname && row.partno,
         );
 
         if (!validRows.length) {

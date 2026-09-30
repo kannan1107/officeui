@@ -36,6 +36,7 @@ const Chat = () => {
   const [attachedFile, setAttachedFile] = useState(null);
   const [editingMsg, setEditingMsg] = useState(null);
   const [editText, setEditText] = useState("");
+  const [editedMessageTimes, setEditedMessageTimes] = useState(() => new Map());
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [chatBg, setChatBg] = useState(
     () => localStorage.getItem("chatBg") || "#f9fafb",
@@ -110,10 +111,17 @@ const Chat = () => {
 
   const handleEdit = async (id) => {
     if (!editText.trim()) return;
-    await editMessage({ id, text: editText });
-    setEditingMsg(null);
-    setEditText("");
-    refetch();
+    try {
+      await editMessage({ id, text: editText }).unwrap();
+      setEditedMessageTimes((times) =>
+        new Map(times).set(id, new Date().toISOString()),
+      );
+      setEditingMsg(null);
+      setEditText("");
+      refetch();
+    } catch (error) {
+      alert(error?.data?.message || "Failed to update message.");
+    }
   };
 
   const handleDelete = async (id) => {
@@ -197,6 +205,13 @@ const Chat = () => {
               {conversation.map((m, i) => {
                 const mine = isMine(m);
                 const showDate = i === 0 || conversation[i - 1].date !== m.date;
+                const editedAt = editedMessageTimes.get(m._id);
+                const editedTime = editedAt
+                  ? new Date(editedAt).toLocaleTimeString([], {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })
+                  : null;
                 return (
                   <div key={m._id}>
                     {showDate && (
@@ -263,6 +278,11 @@ const Chat = () => {
                             className={`text-xs mt-1 ${mine ? "text-blue-100" : "text-gray-400"}`}
                           >
                             {m.time}
+                            {editedTime && (
+                              <span className="ml-1 italic">
+                                · Edited {editedTime}
+                              </span>
+                            )}
                           </p>
                         </div>
 

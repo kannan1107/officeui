@@ -379,7 +379,9 @@ function Stores() {
                     "Place ID",
                     "Location",
                     // "Location ID",
+
                     "Aircraft",
+                    "MSN",
                     "Condition",
                     "Balance",
                     "Batch",
@@ -426,6 +428,7 @@ function Stores() {
                         <td className="py-2 px-4">{item.location}</td>
                         {/* <td className="py-2 px-4">{item.locationId}</td> */}
                         <td className="py-2 px-4">{item.aircraft}</td>
+                        <td className="py-2 px-4">{item.msn}</td>
 
                         <td className="py-2 px-4">{item.condition}</td>
                         <td className="py-2 px-4">{item.quantity}</td>
@@ -636,6 +639,8 @@ function Stores() {
                       ["Status", viewItem.status],
                       ["Location", viewItem.location],
                       // ["Location ID", viewItem.locationId],
+                      ["Aircraft", viewItem.aircraft],
+
                       ["Place", viewItem.place],
                       ["Place ID", viewItem.placeId],
                       ["Self Life", viewItem.selfLife],

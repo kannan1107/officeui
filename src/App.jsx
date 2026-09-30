@@ -108,7 +108,7 @@ function Layout() {
           element={
             <ProtectedRoute>
               <Stores />
-              Stores
+              {/* Stores */}
             </ProtectedRoute>
           }
         />

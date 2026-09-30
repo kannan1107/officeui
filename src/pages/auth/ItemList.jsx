@@ -292,6 +292,7 @@ function ItemList() {
                 <th className="py-2 px-4">Status</th>
                 <th className="py-2 px-4">Location</th>
                 <th className="py-2 px-4">Tag ID</th>
+                <th className="py-2 px-4">MSN</th>
                 <th className="py-2 px-4">Place</th>
                 <th className="py-2 px-4">Place ID</th>
                 <th className="py-2 px-4">Self Life</th>
@@ -327,6 +328,7 @@ function ItemList() {
                     <td className="py-2 px-4">{item.status}</td>
                     <td className="py-2 px-4">{item.location}</td>
                     <td className="py-2 px-4">{item.tagid}</td>
+                    <td className="py-2 px-4">{item.msn}</td>
                     <td className="py-2 px-4">{item.place}</td>
                     <td className="py-2 px-4">{item.placeId}</td>
                     <td className="py-2 px-4">{item.selfLife}</td>
