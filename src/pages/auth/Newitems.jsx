@@ -43,6 +43,7 @@ function Newitems() {
     quantity: "",
     status: "",
     location: "",
+    msn: "",
     tagId: "",
     place: "",
     placeId: "",
@@ -106,50 +107,131 @@ function Newitems() {
           type: "array",
         });
 
-        // Get first sheet
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
-        // Convert Excel sheet to JSON
         const rows = XLSX.utils.sheet_to_json(worksheet, {
           defval: "",
         });
 
-        console.log("Excel Rows:", rows);
+        console.log("RAW EXCEL DATA:", rows);
 
         if (!rows.length) {
           alert("Excel file is empty.");
           return;
         }
 
-        setExcelRows(rows);
+        const mappedRows = rows.map((row) => {
+          const getCell = (...aliases) => {
+            const normalizedAliases = aliases.map((alias) =>
+              alias.toLowerCase().replace(/[^a-z0-9]/g, ""),
+            );
+            const entry = Object.entries(row).find(([header]) =>
+              normalizedAliases.includes(
+                header.toLowerCase().replace(/[^a-z0-9]/g, ""),
+              ),
+            );
+            return String(entry?.[1] ?? "").trim();
+          };
 
-        // Fill form with first Excel row
-        const row = rows[0];
+          const description = getCell(
+            "DESCRIPTION",
+            "ITEM DESCRIPTION",
+            "ITEM NAME",
+          );
 
+          return {
+            itemname: description,
+
+            batch: getCell(
+              "BATCH",
+              "BATCH NO",
+              "BATCH NUMBER",
+              "LOT",
+              "LOT NO",
+            ),
+
+            category: getCell("CATEGORY", "ITEM CATEGORY"),
+
+            aircraft: getCell("AIRCRAFT"),
+
+            partno: getCell("PART NUMBER", "PART NO", "PART NO.", "PART#"),
+
+            alternativePart: getCell(
+              "ALT PART NUMBER",
+              "ALTERNATIVE PART NUMBER",
+            ),
+
+            sno: getCell("SERIAL NUMBER", "SERIAL NO", "SERIAL NO."),
+
+            quantity: getCell("QTY", "QUANTITY"),
+
+            location: getCell("NEW LOCATION", "LOCATION"),
+
+            msn: getCell("MSN"),
+
+            tagId: getCell("TAG NUMBER", "TAG NO", "TAG ID"),
+
+            description,
+
+            // Empty fields not present in Excel
+            condition: "",
+            status: "",
+            place: "",
+            placeId: "",
+            selfLife: "",
+
+            image: [],
+            certificate: "",
+
+            addedBy: loggedInUser,
+
+            addedDate: new Date().toISOString().split("T")[0],
+
+            approvalStatus: "pending",
+          };
+        });
+
+        console.log("MAPPED DATA:", mappedRows);
+
+        // Skip rows that cannot satisfy the backend's required fields.
+        const invalidRows = mappedRows.flatMap((row, index) => {
+          const missing = [
+            !row.batch && "Batch",
+            !row.category && "Category",
+            !row.itemname && "Description",
+            !row.partno && "Part Number",
+          ].filter(Boolean);
+          return missing.length ? [{ rowNumber: index + 2, missing }] : [];
+        });
+        const validRows = mappedRows.filter(
+          (row) => row.batch && row.category && row.itemname && row.partno,
+        );
+
+        if (!validRows.length) {
+          setExcelRows([]);
+          const missingFields = [
+            ...new Set(invalidRows.flatMap((row) => row.missing)),
+          ];
+          alert(
+            `No rows imported. All ${invalidRows.length} row(s) were skipped because they are missing: ${missingFields.join(", ")}.`,
+          );
+          return;
+        }
+
+        setExcelRows(validRows);
+
+        // Show first row in form
         setFormData((prev) => ({
           ...prev,
-
-          itemname: row.itemname || "",
-          batch: row.batch || "",
-          category: row.category || "",
-          aircraft: row.aircraft || "",
-          partno: row.partno || "",
-          alternativePart: row.alternativePart || "",
-          sno: row.sno || "",
-          condition: row.condition || "",
-          quantity: row.quantity || "",
-          status: row.status || "",
-          location: row.location || "",
-          tagId: row.tagId || "",
-          place: row.place || "",
-          placeId: row.placeId || "",
-          selfLife: row.selfLife || "",
-          description: row.description || "",
-
-          addedBy: loggedInUser,
-
-          addedDate: formatExcelDate(row.addedDate),
+          ...validRows[0],
+          image: [],
+          certificate: null,
         }));
+
+        const skippedMessage = invalidRows.length
+          ? ` ${invalidRows.length} incomplete row(s) skipped.`
+          : "";
+        alert(`${validRows.length} rows loaded successfully.${skippedMessage}`);
       } catch (error) {
         console.error("Excel error:", error);
         alert("Failed to read Excel file.");
@@ -191,49 +273,78 @@ function Newitems() {
   };
 
   // -----------------------------
-  // Submit single item
+  // Submit single item (manual form)
   // -----------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const data = new FormData();
-
-    if (!loggedInUser) {
-      alert("Unable to identify the logged-in user.");
+    if (!formData.batch.trim() || !formData.category.trim()) {
+      alert("Batch and Category are required.");
       return;
     }
 
-    const submitData = {
-      ...formData,
-      addedBy: loggedInUser,
-      addedDate: formData.addedDate || new Date().toISOString().split("T")[0],
-      approvalStatus: "pending",
-    };
-
-    Object.entries(submitData).forEach(([key, val]) => {
-      if (key === "image") {
-        val.forEach((file) => {
-          data.append("image", file);
-        });
-      } else if (key === "certificate") {
-        if (val) {
-          data.append("certificate", val);
-        }
-      } else if (val !== undefined && val !== "") {
-        data.append(key, val);
-      }
-    });
-
     try {
+      const data = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key === "image") {
+          value.forEach((img) => data.append("image", img));
+        } else if (value !== undefined && value !== null && value !== "") {
+          data.append(key, value);
+        }
+      });
+      data.append("addedBy", loggedInUser);
+      data.append("approvalStatus", "pending");
       await postItem(data).unwrap();
+      alert("Item submitted successfully.");
       setFormData(initialFormData);
-      setExcelRows([]);
       await refetch();
       navigate("/grn-approval");
     } catch (err) {
-      console.error(err);
+      alert(
+        "Failed to submit: " +
+          (err?.data?.message || err?.message || "Unknown error"),
+      );
+    }
+  };
 
-      alert("Failed to add item: " + (err?.data?.message || "Unknown error"));
+  // -----------------------------
+  // Submit Excel items
+  // -----------------------------
+  const handleExcelSubmit = async () => {
+    if (!excelRows.length) {
+      alert("Please upload an Excel file first.");
+      return;
+    }
+
+    try {
+      for (const row of excelRows) {
+        const data = new FormData();
+
+        Object.entries(row).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            data.append(key, String(value));
+          }
+        });
+
+        console.log("Uploading row:", row);
+
+        await postItem(data).unwrap();
+      }
+
+      alert(`${excelRows.length} items imported successfully.`);
+
+      setExcelRows([]);
+      setFormData(initialFormData);
+
+      await refetch();
+
+      navigate("/grn-approval");
+    } catch (err) {
+      console.error("Excel upload failed:", err);
+
+      alert(
+        "Failed to upload Excel: " +
+          (err?.data?.message || err?.message || "Unknown error"),
+      );
     }
   };
 
@@ -273,6 +384,7 @@ function Newitems() {
         type={type}
         name={name}
         value={formData[name]}
+        required={name === "batch" || name === "category"}
         onChange={handleChange}
         className="w-full border rounded-lg px-3 py-2"
         placeholder={placeholder}
@@ -295,7 +407,7 @@ function Newitems() {
 
             <p className="text-sm text-gray-600 mb-3">
               Upload an Excel file to automatically fill the form using the
-              first row.
+              first row. Rows missing required fields are skipped.
             </p>
 
             <input
@@ -306,9 +418,22 @@ function Newitems() {
             />
 
             {excelRows.length > 0 && (
-              <p className="mt-2 text-green-600 font-medium">
-                {excelRows.length} row(s) found in Excel.
-              </p>
+              <div className="mt-4">
+                <p className="text-green-600 font-medium mb-3">
+                  {excelRows.length} rows ready for import.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={handleExcelSubmit}
+                  disabled={isLoading}
+                  className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isLoading
+                    ? "Uploading..."
+                    : `Upload ${excelRows.length} Items`}
+                </button>
+              </div>
             )}
           </div>
 
@@ -320,7 +445,7 @@ function Newitems() {
             onSubmit={handleSubmit}
             className="grid grid-cols-1 md:grid-cols-4 gap-6"
           >
-            {field("Item Name", "itemname", "text", "Enter Item name")}
+            {field("Item Name", "itemname", "text", "Enter Description")}
 
             {field("Batch", "batch", "text", "Enter Batch")}
 
@@ -378,6 +503,7 @@ function Newitems() {
             {field("Place ID", "placeId", "text", "Enter place ID")}
 
             {field("Self Life", "selfLife", "text", "Enter Self Life")}
+            {field("MSN", "msn", "text", "Enter your place")}
 
             <div>
               <label className="block mb-1 font-medium">Added By</label>
@@ -390,7 +516,7 @@ function Newitems() {
             </div>
 
             {/* Description */}
-            <div className="md:col-span-2">
+            {/* <div className="md:col-span-2">
               <label className="block mb-1 font-medium">Description</label>
 
               <textarea
@@ -401,7 +527,7 @@ function Newitems() {
                 className="w-full border rounded-lg px-3 py-2"
                 placeholder="Write description"
               />
-            </div>
+            </div> */}
 
             {/* Submit */}
             <div className="md:col-span-2 flex items-end">

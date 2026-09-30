@@ -16,9 +16,10 @@ function ItemList() {
   const [deleteItem, { isLoading: isDeleting }] = useDeleteItemMutation();
 
   const currentUser = useSelector((state) => state.auth?.user);
-  const itemsData = Array.isArray(items)
-    ? items
-    : items?.items || items?.data || [];
+  const itemsData = useMemo(
+    () => (Array.isArray(items) ? items : items?.items || items?.data || []),
+    [items],
+  );
 
   const [search, setSearch] = useState("");
   const [filterLocation, setFilterLocation] = useState(
@@ -39,7 +40,7 @@ function ItemList() {
   ];
 
   const filteredData = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = search.trim().toLowerCase();
     return itemsData.filter(
       (item) =>
         item.approvalStatus === "approved" &&
@@ -54,8 +55,25 @@ function ItemList() {
             item.category,
             item.partno,
             item.alternativePart,
+            item.condition,
+            item.quantity,
             item.status,
+            item.location,
+            item.tagid,
+            item.tagId,
+            item.place,
+            item.placeId,
+            item.selfLife,
             item.description,
+            item.sno,
+            item.addedBy?.name,
+            item.addedBy?.email,
+            item.addedBy,
+            item.updatedBy?.name,
+            item.updatedBy?.email,
+            item.updatedBy,
+            item.addedDate,
+            item.updatedDate,
           ].some((v) =>
             String(v ?? "")
               .toLowerCase()
@@ -73,7 +91,7 @@ function ItemList() {
 
   const exportToExcel = () => {
     const rows = filteredData.map((item) => ({
-      "Item Name": item.itemname,
+      Description: item.itemname,
       Batch: item.batch,
       Category: item.category,
       "Part No": item.partno,
@@ -263,7 +281,7 @@ function ItemList() {
           <table className="min-w-full bg-white text-sm">
             <thead>
               <tr className="border-b bg-gray-50 text-left">
-                <th className="py-2 px-4 min-w-[300px]">Name</th>
+                <th className="py-2 px-4 min-w-[300px]">Description</th>
                 <th className="py-2 px-4">S.No</th>
                 <th className="py-2 px-4">Batch</th>
                 <th className="py-2 px-4">Category</th>

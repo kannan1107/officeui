@@ -16,9 +16,14 @@ function GrnApproval() {
   const [view, setView] = useState("pending");
   const [search, setSearch] = useState("");
   const [actionError, setActionError] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
   const items = Array.isArray(data) ? data : data?.items || data?.data || [];
   const submissions = items.filter(
-    (item) => !item.approvalStatus || item.approvalStatus === "pending" || item.approvalStatus === "approved" || item.approvalStatus === "rejected",
+    (item) =>
+      !item.approvalStatus ||
+      item.approvalStatus === "pending" ||
+      item.approvalStatus === "approved" ||
+      item.approvalStatus === "rejected",
   );
   const pendingCount = submissions.filter(
     (item) => !item.approvalStatus || item.approvalStatus === "pending",
@@ -26,7 +31,12 @@ function GrnApproval() {
   const visibleItems = useMemo(() => {
     const query = search.trim().toLowerCase();
     return submissions
-      .filter((item) => view === "all" || !item.approvalStatus || item.approvalStatus === "pending")
+      .filter(
+        (item) =>
+          view === "all" ||
+          !item.approvalStatus ||
+          item.approvalStatus === "pending",
+      )
       .filter((item) =>
         [
           item.itemname,
@@ -40,8 +50,41 @@ function GrnApproval() {
             .includes(query),
         ),
       )
-      .sort((a, b) => new Date(b.addedDate) - new Date(a.addedDate));
+      .sort((a, b) => {
+        const aPending = !a.approvalStatus || a.approvalStatus === "pending";
+        const bPending = !b.approvalStatus || b.approvalStatus === "pending";
+        return (
+          Number(bPending) - Number(aPending) ||
+          new Date(b.addedDate) - new Date(a.addedDate)
+        );
+      });
   }, [submissions, view, search]);
+  const visiblePendingItems = visibleItems.filter(
+    (item) => !item.approvalStatus || item.approvalStatus === "pending",
+  );
+  const selectedPendingItems = visiblePendingItems.filter((item) =>
+    selectedIds.includes(item._id),
+  );
+  const allVisiblePendingSelected =
+    visiblePendingItems.length > 0 &&
+    visiblePendingItems.every((item) => selectedIds.includes(item._id));
+
+  const toggleSelectAll = (checked) => {
+    const visiblePendingIds = visiblePendingItems.map((item) => item._id);
+    setSelectedIds((current) =>
+      checked
+        ? [...new Set([...current, ...visiblePendingIds])]
+        : current.filter((id) => !visiblePendingIds.includes(id)),
+    );
+  };
+
+  const toggleSelected = (itemId, checked) => {
+    setSelectedIds((current) =>
+      checked
+        ? [...new Set([...current, itemId])]
+        : current.filter((id) => id !== itemId),
+    );
+  };
 
   const handleAction = async (item, approvalStatus) => {
     setActionError("");
@@ -50,12 +93,36 @@ function GrnApproval() {
         itemId: item._id,
         updatedData: { approvalStatus },
       }).unwrap();
+      setSelectedIds((current) => current.filter((id) => id !== item._id));
       await refetch();
       if (approvalStatus === "approved") setView("all");
     } catch (error) {
       setActionError(
         error?.data?.message || "Could not update this GRN. Please try again.",
       );
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    if (!selectedPendingItems.length) return;
+
+    setActionError("");
+    try {
+      for (const item of selectedPendingItems) {
+        await updateItem({
+          itemId: item._id,
+          updatedData: { approvalStatus: "approved" },
+        }).unwrap();
+      }
+      setSelectedIds([]);
+      await refetch();
+      setView("all");
+    } catch (error) {
+      setActionError(
+        error?.data?.message ||
+          "Some GRNs could not be approved. Please review the list and try again.",
+      );
+      await refetch();
     }
   };
 
@@ -97,17 +164,35 @@ function GrnApproval() {
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setView(key)}
+                  onClick={() => {
+                    setView(key);
+                    setSelectedIds([]);
+                  }}
                   className={`rounded-lg px-4 py-2 text-sm font-semibold ${view === key ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
                 >
                   {label}
                 </button>
               ))}
+              {selectedPendingItems.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleBulkApprove}
+                  disabled={isUpdating}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {isUpdating
+                    ? "Approving..."
+                    : `Approve selected (${selectedPendingItems.length})`}
+                </button>
+              )}
             </div>
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setSelectedIds([]);
+              }}
               placeholder="Search item, part no, location..."
               aria-label="Search GRN submissions"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:max-w-xs"
@@ -144,6 +229,18 @@ function GrnApproval() {
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
+                    <th className="w-12 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all visible pending GRNs"
+                        checked={allVisiblePendingSelected}
+                        disabled={!visiblePendingItems.length || isUpdating}
+                        onChange={(event) =>
+                          toggleSelectAll(event.target.checked)
+                        }
+                        className="h-4 w-4 accent-emerald-600"
+                      />
+                    </th>
                     {[
                       "Item",
                       "Part No",
@@ -168,7 +265,7 @@ function GrnApproval() {
                   {visibleItems.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={9}
+                        colSpan={10}
                         className="px-4 py-12 text-center text-slate-500"
                       >
                         {view === "pending"
@@ -179,6 +276,21 @@ function GrnApproval() {
                   ) : (
                     visibleItems.map((item) => (
                       <tr key={item._id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3">
+                          {(!item.approvalStatus ||
+                            item.approvalStatus === "pending") && (
+                            <input
+                              type="checkbox"
+                              aria-label={`Select ${item.itemname || "item"} for approval`}
+                              checked={selectedIds.includes(item._id)}
+                              disabled={isUpdating}
+                              onChange={(event) =>
+                                toggleSelected(item._id, event.target.checked)
+                              }
+                              className="h-4 w-4 accent-emerald-600"
+                            />
+                          )}
+                        </td>
                         <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-800">
                           {item.itemname || "—"}
                         </td>
@@ -210,7 +322,8 @@ function GrnApproval() {
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">
-                          {(!item.approvalStatus || item.approvalStatus === "pending") ? (
+                          {!item.approvalStatus ||
+                          item.approvalStatus === "pending" ? (
                             <div className="flex gap-2">
                               <button
                                 type="button"

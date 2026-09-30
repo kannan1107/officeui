@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import logo from "../../assets/logo.jpg";
 import {
   useGetItemsQuery,
   useUpdateItemMutation,
@@ -107,12 +109,14 @@ function Stores() {
       import.meta.env.VITE_COMPANY_NAME ||
       storedUser?.company ||
       item.company ||
-      "Office";
+      "kannan Aviation";
     const excludedFields = new Set([
       "_id",
       "__v",
       "createdAt",
       "updatedAt",
+      "createdBy",
+      "updatedBy",
       "inHistory",
       "outHistory",
       "image",
@@ -165,7 +169,8 @@ function Stores() {
             @page { size: A5 portrait; margin: 8mm; }
             body { margin: 0; padding: 8mm; color: #111827; font-family: Arial, sans-serif; }
             .tag { width: 100%; max-width: 148mm; margin: 0 auto; border: 2px solid #111827; padding: 12px; page-break-inside: avoid; }
-            .header { text-align: center; border-bottom: 2px solid #111827; padding-bottom: 9px; margin-bottom: 10px; }
+            .header { display: grid; grid-template-columns: 18mm 1fr 18mm; align-items: center; border-bottom: 2px solid #111827; padding-bottom: 9px; margin-bottom: 10px; text-align: center; }
+            .logo { width: 15mm; max-height: 12mm; object-fit: contain; }
             .company { margin: 0; font-size: 20px; text-transform: uppercase; }
             .title { margin: 5px 0 0; font-size: 16px; }
             table { width: 100%; border-collapse: collapse; }
@@ -180,8 +185,12 @@ function Stores() {
         <body>
           <main class="tag">
             <header class="header">
-              <h1 class="company">${escapeHtml(companyName)}</h1>
-              <h2 class="title">${escapeHtml(item.itemname || "Item Details")}</h2>
+              <img class="logo" src="${escapeHtml(logo)}" alt="Company logo">
+              <div>
+                <h1 class="company">${escapeHtml(companyName)}</h1>
+                <h2 class="title">${escapeHtml(item.itemname || "Item Details")}</h2>
+              </div>
+              <div></div>
             </header>
             <table>
               <tbody>${description}${details}</tbody>
@@ -360,7 +369,7 @@ function Stores() {
               <thead>
                 <tr className="border-b bg-gray-50 text-left">
                   {[
-                    "Item Name",
+                    "Description",
 
                     "Part No",
                     "Alt Part",
@@ -369,7 +378,8 @@ function Stores() {
                     "Place",
                     "Place ID",
                     "Location",
-                    "Location ID",
+                    // "Location ID",
+                    "Aircraft",
                     "Condition",
                     "Balance",
                     "Batch",
@@ -414,7 +424,8 @@ function Stores() {
                         <td className="py-2 px-4">{item.place}</td>
                         <td className="py-2 px-4">{item.placeId}</td>
                         <td className="py-2 px-4">{item.location}</td>
-                        <td className="py-2 px-4">{item.locationId}</td>
+                        {/* <td className="py-2 px-4">{item.locationId}</td> */}
+                        <td className="py-2 px-4">{item.aircraft}</td>
 
                         <td className="py-2 px-4">{item.condition}</td>
                         <td className="py-2 px-4">{item.quantity}</td>
@@ -452,9 +463,9 @@ function Stores() {
                         <td className="py-2 px-4">
                           {(item.outHistory || []).length}
                         </td>
-                        <td className="py-2 px-4 min-w-[200px]">
+                        {/* <td className="py-2 px-4 min-w-[200px]">
                           {item.description}
-                        </td>
+                        </td> */}
                         <td className="py-2 px-4">
                           <div className="flex gap-2">
                             <button
@@ -624,7 +635,7 @@ function Stores() {
                       ["Quantity", viewItem.quantity],
                       ["Status", viewItem.status],
                       ["Location", viewItem.location],
-                      ["Location ID", viewItem.locationId],
+                      // ["Location ID", viewItem.locationId],
                       ["Place", viewItem.place],
                       ["Place ID", viewItem.placeId],
                       ["Self Life", viewItem.selfLife],
@@ -645,8 +656,8 @@ function Stores() {
 
                   {viewItem.description && (
                     <div className="mt-3 bg-gray-50 rounded-lg px-3 py-2 text-sm">
-                      <p className="text-gray-400 text-xs mb-1">Description</p>
-                      <p>{viewItem.description}</p>
+                      {/* <p className="text-gray-400 text-xs mb-1">Description</p> */}
+                      {/* <p>{viewItem.description}</p> */}
                     </div>
                   )}
 
@@ -924,7 +935,7 @@ function Stores() {
                 ["quantity", "Quantity"],
                 ["status", "Status"],
                 ["location", "Location"],
-                ["locationId", "Location ID"],
+                // ["locationId", "Location ID"],
                 ["place", "Place"],
                 ["placeId", "Place ID"],
                 ["selfLife", "Self Life"],
@@ -947,13 +958,13 @@ function Stores() {
                 <label className="block text-xs mb-1 text-gray-500">
                   Description
                 </label>
-                <textarea
+                {/* <textarea
                   name="description"
                   rows="3"
                   value={editItem.description || ""}
                   onChange={handleEditChange}
                   className="w-full border rounded-lg px-3 py-2 text-sm"
-                />
+                /> */}
               </div>
               <div className="col-span-2 flex gap-2 mt-2">
                 <button
